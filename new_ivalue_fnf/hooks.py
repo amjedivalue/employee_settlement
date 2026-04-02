@@ -1,17 +1,19 @@
-app_name = "ivalue_fnf_custom"
-app_title = "Ivalue Fnf Custom"
-app_publisher = "AmjedAltamimi"
-app_description = "Custom FNF"
-app_email = "amjed.altamimi@ivalueconsult.com"
+
+app_name = "new_ivalue_fnf"
+app_title = "iValue FnF new "
+app_publisher = "Amjad"
+app_description = "this is a new build for FNF"
+app_email = "Amjad.altamimi@ivalueconsult.com"
 app_license = "mit"
+
 
 doc_events = {
     "Full and Final Statement": {
-        "before_insert": "ivalue_fnf.api.full_and_final.set_transaction_date",
-        "validate": "ivalue_fnf.api.full_and_final.populate_full_and_final_doc"
+       "before_insert": "new_ivalue_fnf.api.full_and_final.set_transaction_date",
+        "validate": "new_ivalue_fnf.api.full_and_final.populate_full_and_final_doc"
     }
 }
-
+ 
 doctype_js = {
     "Full and Final Statement": "public/js/full_and_final_statement.js",
 }

@@ -1,7 +1,7 @@
 from frappe import _
 import frappe
 from frappe.utils import flt, getdate
-from ivalue_fnf_custom.api import date_utils
+from new_ivalue_fnf.api import date_utils
 
 #ss
 def fetch_latest_salary_assignment(employee: str, as_of_date):

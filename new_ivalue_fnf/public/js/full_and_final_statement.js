@@ -77,9 +77,9 @@ frappe.ui.form.on("Full and Final Statement", {
     clear_placeholder_rows(frm);
   },
 
-  employee(frm) {
-    clear_placeholder_rows(frm);
-  },
+  // employee(frm) {
+  //   clear_placeholder_rows(frm);
+  // },
 
   relieving_date(frm) {
     clear_placeholder_rows(frm);

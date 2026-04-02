@@ -18,6 +18,7 @@ def inclusive_days(start_date, end_date) -> int:
     return (end - start).days + 1
 
 
+
 def month_first_day(any_date) -> date:
     d = getdate(any_date)
     return date(d.year, d.month, 1)

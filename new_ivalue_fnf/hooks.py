@@ -7,8 +7,8 @@ app_license = "mit"
 
 doc_events = {
     "Full and Final Statement": {
-        "before_insert": "new_ivalue_fnf.api.full_and_final.set_transaction_date",
-        "validate": "new_ivalue_fnf.api.full_and_final.populate_full_and_final_doc"
+        "before_insert": "ivalue_fnf.api.full_and_final.set_transaction_date",
+        "validate": "ivalue_fnf.api.full_and_final.populate_full_and_final_doc"
     }
 }
 

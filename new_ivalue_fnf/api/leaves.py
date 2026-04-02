@@ -1,6 +1,6 @@
 import frappe
 from frappe.utils import flt, get_first_day, getdate
-from ivalue_fnf_custom.api import date_utils
+from new_ivalue_fnf.api import date_utils
 def get_personal_leave_days_by_type(employee: str, end_date) -> dict:
     month_start = get_first_day(getdate(end_date))
 

@@ -1,0 +1,65 @@
+[
+ {
+  "docstatus": 0,
+  "doctype": "Workflow State",
+  "icon": "",
+  "modified": "2026-04-05 11:16:37.091129",
+  "name": "Signed",
+  "style": "Success",
+  "workflow_state_name": "Signed"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Workflow State",
+  "icon": "",
+  "modified": "2025-09-10 20:06:39.173313",
+  "name": "Cancel",
+  "style": "Danger",
+  "workflow_state_name": "Cancel"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Workflow State",
+  "icon": "",
+  "modified": "2026-04-05 11:10:59.364134",
+  "name": "HR User",
+  "style": "",
+  "workflow_state_name": "HR User"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Workflow State",
+  "icon": "",
+  "modified": "2026-04-05 11:15:09.750621",
+  "name": "Pending Supporting Services Director",
+  "style": "",
+  "workflow_state_name": "Pending Supporting Services Director"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Workflow State",
+  "icon": "",
+  "modified": "2026-04-05 11:15:53.596209",
+  "name": "Employee Sigen",
+  "style": "",
+  "workflow_state_name": "Employee Sigen"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Workflow State",
+  "icon": "",
+  "modified": "2026-04-05 11:18:47.824563",
+  "name": "Pending Finance Director",
+  "style": "",
+  "workflow_state_name": "Pending Finance Director"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Workflow State",
+  "icon": "",
+  "modified": "2025-12-10 16:10:50.368915",
+  "name": "HR Manager",
+  "style": "",
+  "workflow_state_name": "HR Manager"
+ }
+]

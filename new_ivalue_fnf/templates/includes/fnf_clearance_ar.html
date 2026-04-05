@@ -124,7 +124,9 @@ line-height: 1.95;
     <div>المقر والمتعهد بما فيه</div>
     <div class="line">الاسم: <span class="value">{{ emp.custom_full_name_arabic }}</span></div>
     <div class="line">التاريخ: <span class="value">{{ frappe.utils.formatdate(doc.transaction_date) }}</span></div>
-    <div class="line">التوقيع: __________________</div>
+    
+    {% raw %}<div style = "transform: scale(1.6); transform-origin: center center; direction: ltr;">{{Signature*}} :التوقيع </div>{% endraw %}
+    <!-- <div class="line"> </div> -->
   </div>
 
 </div>

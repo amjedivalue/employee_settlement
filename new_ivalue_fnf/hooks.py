@@ -30,7 +30,15 @@ fixtures = [
         "filters": [
             ["name", "=", "Custom Full and Final Statement"]
         ]
-    }
+    },
+    {
+        "dt": "Workflow",
+        "filters": [["name", "in", ["Full and final Statement"]]]
+    },
+    {
+        "dt": "Workflow State",
+        "filters": [["workflow_state_name", "in", ["HR User", "HR Manager", "Pending Finance Director", "Pending Supporting Services Director", "Employee Sigen", "Signed", "Cancel"]]]
+    },
 ]   
 
 
@@ -201,23 +209,13 @@ fixtures = [
 # # Scheduled Tasks
 # # ---------------
 
-# # scheduler_events = {
-# # 	"all": [
-# # 		"new_ivalue_fnf.tasks.all"
-# # 	],
-# # 	"daily": [
-# # 		"new_ivalue_fnf.tasks.daily"
-# # 	],
-# # 	"hourly": [
-# # 		"new_ivalue_fnf.tasks.hourly"
-# # 	],
-# # 	"weekly": [
-# # 		"new_ivalue_fnf.tasks.weekly"
-# # 	],
-# # 	"monthly": [
-# # 		"new_ivalue_fnf.tasks.monthly"
-# # 	],
-# # }
+scheduler_events = {
+	"cron": {
+        "0 */2 * * *": [
+            "new_ivalue_fnf.fetch_zoho.fetch_zoho_doc",
+        ]
+    }
+}
 
 # # Testing
 # # -------

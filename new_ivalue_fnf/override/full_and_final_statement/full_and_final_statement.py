@@ -27,7 +27,7 @@ def fetch_zoho_doc(name):
     zoho = Zoho_api(doctype = 'Full and Final Statement', name = doc.name, status_child_table_name = "Custody Status", zoho_id = doc.zoho_id)
     zoho_status = zoho.fetch_zoho_status()
     if zoho_status['status'] == 200:
-        update_workfow_status(name)
+        update_workfow_status(doc)
         return {'status': 200, 'message': "status has been updated successfully"}
 
 
@@ -36,9 +36,12 @@ def cancel_doc_type(name):
     update_workflow_status = frappe.db.set_value('Full and Final Statement', name, 'workflow_state', 'Cancel')
     frappe.db.commit()
 
-def update_workfow_status(name):
-    update_workflow_status = frappe.db.set_value('Full and Final Statement', name, 'workflow_state', 'Signed')
-    frappe.db.commit()
+def update_workfow_status(doc):
+    count_all_sign = len([row for row in doc.custom_zoho_status if row.action_type == "SIGN"])
+    get_all_siged_doc = len([row for row in doc.custom_zoho_status if row.action_type == "SIGNED"])
+    if count_all_sign == get_all_siged_doc and count_all_sign != 0 and doc.status == "Received":
+        frappe.db.set_value('Full and Final Statement', name, 'workflow_state', 'Signed')
+        frappe.db.commit()
 
 @frappe.whitelist()
 def upload_on_zoho(name):

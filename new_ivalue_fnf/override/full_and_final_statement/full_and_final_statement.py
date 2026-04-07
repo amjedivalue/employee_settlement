@@ -1,7 +1,74 @@
 import frappe
 from custody.employee_custody.ZOHO.Zoho_api import Zoho_api
 
+@frappe.whitelist()
+def add_assigened_to(name, workflow_state):
+    status = ""
+    match (workflow_state):
+        case "Pending Finance Director":
+            status = "Accounts Manager"
+        case "Pending Supporting Services Directorr":
+            status = "Supporting Services Director"
+        case "HR Manager":
+            status = "HR Manager"
 
+
+
+	 # Get all users who have this role
+    users = frappe.db.sql(
+        """
+        SELECT DISTINCT hr.parent AS user_id
+        FROM `tabHas Role` hr
+        JOIN `tabUser` u ON u.name = hr.parent
+        WHERE hr.role = %s
+        AND hr.parenttype = 'User'
+        AND u.enabled = 1
+        AND u.user_type = 'System User'
+        AND u.name != 'Administrator'
+        """,
+        (status,),
+        as_dict=True,
+    )
+    status = ["Open", "Pending"]
+
+    for item in users:
+        user_id = item["user_id"]
+        
+        # Check if ToDo already exists and is still open/pending
+        exists = frappe.db.exists(
+            "ToDo",
+            {
+                "reference_type": "Full and Final Statement",
+                "reference_name": name,
+                "allocated_to": user_id,
+                "status": ("in", status),
+            },
+        )
+
+        if not exists:
+            todo = frappe.get_doc(
+                {
+                    "doctype": "ToDo",
+                    "allocated_to": user_id,
+                    "reference_type": "Full and Final Statement",
+                    "reference_name": name,
+                    "description": f"Please Approve Full and Final  {name}",
+                    "priority": "High",
+                    "status": "Open",
+                    "date": frappe.utils.today(),
+                }
+            )
+            todo.insert(ignore_permissions=True)
+            # frappe.share.add(
+            #     "Self Service",
+            #     name,
+            #     user_id,
+            #     read=1,
+            #     write=1,
+            #     submit = 1,
+            #     share=1,
+            # )
+    return{'status': 201, 'message': "to do has been added successfully"}
 
 
 

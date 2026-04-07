@@ -32,9 +32,32 @@ frappe.ui.form.on("Full and Final Statement", {
   },
   before_cancel:function(frm){
     remove_custody(frm)
+  },
+  after_workflow_action:function(frm){
+       if (frm.doc.workflow_state !== "Employee Sigen" && frm.doc.workflow_state !== "HR User" ){
+            add_to_do(frm)
+        }
   }
 });
 
+
+function add_to_do(frm){
+    frappe.call({
+        method:"new_ivalue_fnf.override.full_and_final_statement.full_and_final_statement.add_assigened_to",
+        args:{name:frm.doc.name, workflow_state:frm.doc.workflow_state},
+        freeze:true,
+        freeze_message: __("Add to do..."),
+        callback:function(response){
+            if(response.message.status === 201){
+                 frappe.show_alert({
+                    message: __("To do has been added successfully"),
+                    indicator: "green"
+                });
+                frm.reload_doc();
+            }
+        }
+    })
+}
 
 function remove_custody(frm){
   frappe.call({

@@ -97,14 +97,15 @@ def get_full_and_final_data(employee: str, relieving_date=None):
         join_date,
         final_date
     )
-
+    #cureency symbol
     currency = salary_info.get("currency")
+
     if not currency:
         currency = employee_data.fetch_company_currency(emp.get("company"))
 
     if not currency:
-        frappe.throw("Salary Currency is missing in Salary Structure Assignment and Company.")
-
+        frappe.throw("Salary Currency is missing in Salary Structure Assignment, Salary Structure, and Company.")
+    
     payable_account = employee_data.fetch_company_payable_account(emp.get("company"))
 
     leave_rows = leaves.compute_carry_forward_leave_rows(employee, join_date, final_date)

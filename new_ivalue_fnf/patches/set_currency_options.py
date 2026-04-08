@@ -1,30 +1,18 @@
 import frappe
 
 def execute():
-    frappe.make_property_setter({
-        "doctype": "Full and Final Statement",
-        "fieldname": "total_payable_amount",
+    # Full and Final Statement
+    frappe.db.delete("Property Setter", {
+        "doc_type": "Full and Final Statement",
+        "field_name": ["in", ["total_payable_amount", "total_receivable_amount"]],
         "property": "options",
-        "value": "custom_company_currency",
-        "property_type": "Data",
     })
 
-    frappe.make_property_setter({
-        "doctype": "Full and Final Statement",
-        "fieldname": "total_receivable_amount",
+    # Child Table
+    frappe.db.delete("Property Setter", {
+        "doc_type": "Full and Final Outstanding Statement",
+        "field_name": "amount",
         "property": "options",
-        "value": "custom_company_currency",
-        "property_type": "Data",
     })
-    frappe.make_property_setter({
-        "doctype": "Full and Final Outstanding Statement",
-        "fieldname": "amount",
-        "property": "options",
-        "value": "custom_company_currency",
-        "property_type": "Data",
-    })
-
 
     frappe.db.commit()
-
-

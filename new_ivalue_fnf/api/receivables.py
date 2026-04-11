@@ -85,13 +85,13 @@ def build_receivables_from_employee_advances(employee: str):
             continue
 
         rows.append({
-            "component": "Employee Advance",
+            "component": "Employee Advance" or adv.nam,
             "reference_document_type": "Employee Advance",
             "reference_document": adv.name,
             "account": account,
-            "amount": outstanding,
+            "amount":  flt(advance_amount),
             "status": "Settled",
-            "custom_number_of_days": 0,
+            "custom_number_of_days":0,
         })
         total += outstanding
 

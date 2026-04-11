@@ -252,6 +252,10 @@ def populate_full_and_final_doc(doc, method=None):
 
     # fill payables
     for row in data.get("payables") or []:
+        amount = flt(row.get("amount"))
+
+        if amount <= 0:
+            continue
         doc.append("payables", {
             "component": row.get("component"),
             "reference_document_type": row.get("reference_document_type"),
@@ -269,6 +273,10 @@ def populate_full_and_final_doc(doc, method=None):
 
     # fill receivables
     for row in data.get("receivables") or []:
+        amount = flt(row.get("amount"))
+
+        if amount <= 0:
+            continue
         doc.append("receivables", {
             "component": row.get("component"),
             "reference_document_type": row.get("reference_document_type"),
@@ -278,9 +286,7 @@ def populate_full_and_final_doc(doc, method=None):
             "status": row.get("status") or "Settled",
             "custom_number_of_days": (
                 row.get("custom_number_of_days")
-                or row.get("days")
-                or row.get("day_count")
-                or 0
+               
             ),
         })
 

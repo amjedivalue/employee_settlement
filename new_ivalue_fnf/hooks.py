@@ -16,6 +16,7 @@ doc_events = {
  
 doctype_js = {
     "Full and Final Statement": "public/js/full_and_final_statement.js",
+    # "Full and Final Statement": "public/js/fnf_tracking.js",
 }
 
 fixtures = [

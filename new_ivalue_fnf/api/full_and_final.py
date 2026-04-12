@@ -17,7 +17,7 @@ def set_transaction_date(doc, method=None):
 
 def has_only_default_placeholder_rows(doc) -> bool:
     placeholder_payables = {"Gratuity", "Expense Claim", "Bonus", "Leave Encashment"}
-    placeholder_receivables = {"Employee Advance"}
+    placeholder_receivables = {"Employee Advance","Loan"}
 
     payables_rows = doc.get("payables") or []
     receivables_rows = doc.get("receivables") or []
@@ -265,9 +265,7 @@ def populate_full_and_final_doc(doc, method=None):
             "status": row.get("status") or "Settled",
             "custom_number_of_days": (
                 row.get("custom_number_of_days")
-                or row.get("days")
-                or row.get("day_count")
-                or 0
+               
             ),
         })
 

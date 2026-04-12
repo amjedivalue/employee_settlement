@@ -16,6 +16,19 @@ frappe.ui.form.on("Full and Final Statement", {
 
   employee(frm) {
     clear_placeholder_rows(frm);
+    if (!frm.doc.employee) {
+    frm.set_value("employee_name", "");
+    frm.set_value("date_of_joining", "");
+    frm.set_value("relieving_date", "");
+    frm.set_value("department", "");
+    frm.set_value("designation", "");
+    frm.set_value("company", "");
+    frm.set_value("custom_company_currency", "");
+
+    frm.clear_table("payables");
+    frm.clear_table("receivables");
+    frm.clear_table("assets_allocated");
+    frm.clear_table("custom_carry_forward_leaves");}
   },
 
   relieving_date(frm) {

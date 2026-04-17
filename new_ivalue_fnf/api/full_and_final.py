@@ -1,9 +1,10 @@
-
 from datetime import date
 
 import frappe
 from frappe import _
 from frappe.utils import flt, getdate, nowdate, get_first_day, relativedelta
+
+from new_ivalue_fnf.api.gratuity import build_gratuity_payable_row
 
 
 # =========================================================
@@ -111,6 +112,9 @@ def get_employee_basic_data(employee_id: str) -> dict:
             "designation",
             "date_of_joining",
             "relieving_date",
+            "employment_type",
+            "custom_reason_of_leaving",
+            "employment_type",
         ],
         as_dict=True,
     )
@@ -133,7 +137,7 @@ def get_company_currency(company: str) -> str | None:
 
 def get_company_default_payable_account(company: str) -> str | None:
     """
-    جلب الحساب الافتراضي الذي سنستخدمه مؤقتًا للمستحقات
+    جلب الحساب الافتراضي الذي سنستخدمه للمستحقات
     """
     if not company:
         return None
@@ -162,7 +166,21 @@ def get_company_employee_advance_account(company: str) -> str | None:
     if not company:
         return None
 
-    return frappe.db.get_value("Company", company, "default_employee_advance_account")
+    company_doc = frappe.get_cached_doc("Company", company)
+
+    candidate_fields = [
+        "default_employee_advance_account",
+        "default_receivable_account",
+        "default_payable_account",
+    ]
+
+    for field_name in candidate_fields:
+        if hasattr(company_doc, field_name):
+            field_value = getattr(company_doc, field_name)
+            if field_value:
+                return field_value
+
+    return None
 
 
 def get_company_letter_head(company: str) -> str | None:
@@ -176,7 +194,51 @@ def get_company_letter_head(company: str) -> str | None:
 
 
 # =========================================================
-# SECTION 3: مدة الخدمة
+# SECTION 3: قراءة الحقول من Full and Final أو Employee
+# =========================================================
+
+def get_reason_of_leaving_value(passed_reason, employee_data: dict) -> str:
+    """
+    جلب سبب المغادرة
+    الأولوية للقيمة القادمة من Full and Final
+    وإذا لم توجد نرجع للقيمة الموجودة على الموظف
+    """
+    if passed_reason:
+        return str(passed_reason).strip()
+
+    if not employee_data:
+        return ""
+
+    if employee_data.get("custom_reason_of_leaving"):
+        return str(employee_data.get("custom_reason_of_leaving")).strip()
+
+    return ""
+
+
+def get_employment_type_value(passed_employment_type, employee_data: dict) -> str:
+    """
+    جلب نوع التوظيف
+    الأولوية للقيمة القادمة من Full and Final
+    ثم من employee custom
+    ثم من employee standard
+    """
+    if passed_employment_type:
+        return str(passed_employment_type).strip()
+
+    if not employee_data:
+        return ""
+
+    if employee_data.get("custom_employment_type"):
+        return str(employee_data.get("custom_employment_type")).strip()
+
+    if employee_data.get("employment_type"):
+        return str(employee_data.get("employment_type")).strip()
+
+    return ""
+
+
+# =========================================================
+# SECTION 4: مدة الخدمة
 # =========================================================
 
 def get_service_period_data(join_date, relieving_date) -> dict:
@@ -193,14 +255,14 @@ def get_service_period_data(join_date, relieving_date) -> dict:
         "years": difference.years,
         "months": difference.months,
         "days": difference.days,
-        "total_years": flt(total_days / 365, 3),
+        "total_years": flt(total_days / 365, 6),
     }
 
     return service_data
 
 
 # =========================================================
-# SECTION 4: الراتب الأساسي وآخر راتب
+# SECTION 5: الراتب الأساسي وآخر راتب
 # =========================================================
 
 def get_latest_salary_structure_assignment(employee: str, as_of_date):
@@ -324,7 +386,7 @@ def calculate_salary_days_row_data(employee: str, join_date, relieving_date) -> 
 
 
 # =========================================================
-# SECTION 5: الإجازات القابلة للصرف
+# SECTION 6: الإجازات القابلة للصرف
 # =========================================================
 
 def get_personal_leave_days_grouped_by_type(employee: str, end_date) -> dict:
@@ -499,7 +561,7 @@ def build_leave_encashment_payable_rows(
 
 
 # =========================================================
-# SECTION 6: أجر أيام العمل
+# SECTION 7: أجر أيام العمل
 # =========================================================
 
 def build_salary_days_payable_row(salary_data: dict, account: str) -> tuple[list[dict], float]:
@@ -531,7 +593,7 @@ def build_salary_days_payable_row(salary_data: dict, account: str) -> tuple[list
 
 
 # =========================================================
-# SECTION 7: السلف
+# SECTION 8: السلف
 # =========================================================
 
 def build_employee_advance_receivable_rows(employee: str) -> tuple[list[dict], float]:
@@ -595,7 +657,7 @@ def build_employee_advance_receivable_rows(employee: str) -> tuple[list[dict], f
 
 
 # =========================================================
-# SECTION 8: المطالبات المالية Expense Claim
+# SECTION 9: المطالبات المالية Expense Claim
 # =========================================================
 
 def build_expense_claim_rows(employee: str, company: str) -> tuple[list[dict], list[dict], float, float]:
@@ -685,7 +747,7 @@ def build_expense_claim_rows(employee: str, company: str) -> tuple[list[dict], l
 
 
 # =========================================================
-# SECTION 9: Additional Salary
+# SECTION 10: Additional Salary
 # =========================================================
 
 def get_salary_component_type(salary_component: str) -> str | None:
@@ -784,7 +846,7 @@ def build_additional_salary_rows(
 
 
 # =========================================================
-# SECTION 10: دوال تجميع المجاميع
+# SECTION 11: دوال تجميع المجاميع
 # =========================================================
 
 def calculate_total_leave_balance(leave_rows: list[dict]) -> float:
@@ -801,11 +863,16 @@ def calculate_total_leave_balance(leave_rows: list[dict]) -> float:
 
 
 # =========================================================
-# SECTION 11: API الرئيسية
+# SECTION 12: API الرئيسية
 # =========================================================
 
 @frappe.whitelist()
-def get_full_and_final_data(employee: str, relieving_date=None):
+def get_full_and_final_data(
+    employee: str,
+    relieving_date=None,
+    reason_of_leaving=None,
+    employment_type=None,
+):
     """
     هذه هي دالة الـ API الرئيسية
     نحافظ على اسمها كما طلبت
@@ -824,6 +891,9 @@ def get_full_and_final_data(employee: str, relieving_date=None):
 
     if not final_date:
         frappe.throw(_("Relieving Date is required."))
+
+    final_reason_of_leaving = get_reason_of_leaving_value(reason_of_leaving, employee_data)
+    final_employment_type = get_employment_type_value(employment_type, employee_data)
 
     company_letter_head = get_company_letter_head(company)
 
@@ -870,11 +940,22 @@ def get_full_and_final_data(employee: str, relieving_date=None):
         final_date,
     )
 
+    gratuity_rows, gratuity_total = build_gratuity_payable_row(
+        employee=employee,
+        company=company,
+        employment_type=final_employment_type,
+        reason_of_leaving=final_reason_of_leaving,
+        service_data=service_data,
+        salary_data=salary_data,
+        account=default_payable_account,
+    )
+
     all_payables = []
     all_payables.extend(salary_days_rows)
     all_payables.extend(leave_encashment_rows)
     all_payables.extend(expense_claim_payables)
     all_payables.extend(additional_salary_payables)
+    all_payables.extend(gratuity_rows)
 
     all_receivables = []
     all_receivables.extend(employee_advance_rows)
@@ -885,7 +966,8 @@ def get_full_and_final_data(employee: str, relieving_date=None):
         salary_days_total
         + leave_encashment_total
         + expense_claim_payable_total
-        + additional_salary_payable_total,
+        + additional_salary_payable_total
+        + gratuity_total,
         2,
     )
 
@@ -904,6 +986,10 @@ def get_full_and_final_data(employee: str, relieving_date=None):
         "company_currency": company_currency,
         "letter_head": company_letter_head,
         "employee": employee_data,
+        "full_and_final_fields": {
+            "reason_of_leaving": final_reason_of_leaving,
+            "employment_type": final_employment_type,
+        },
         "salary": {
             "basic_salary": flt(salary_data["breakdown"]["basic"], 2),
             "housing": flt(salary_data["breakdown"]["housing"], 2),
@@ -935,7 +1021,7 @@ def get_full_and_final_data(employee: str, relieving_date=None):
 
 
 # =========================================================
-# SECTION 12: إعادة البناء التلقائي للوثيقة
+# SECTION 13: إعادة البناء التلقائي للوثيقة
 # =========================================================
 
 def set_transaction_date(doc, method=None):
@@ -1018,11 +1104,39 @@ def should_rebuild_full_and_final_document(doc) -> bool:
     if str(old_doc.relieving_date) != str(doc.relieving_date):
         return True
 
+    current_reason = ""
+    old_reason = ""
+
+    if hasattr(doc, "custom_reason_of_leaving"):
+        current_reason = doc.custom_reason_of_leaving
+
+    if hasattr(old_doc, "custom_reason_of_leaving"):
+        old_reason = old_doc.custom_reason_of_leaving
+
+    if str(current_reason).strip() != str(old_reason).strip():
+        return True
+
+    current_employment_type = ""
+    old_employment_type = ""
+
+    if hasattr(doc, "custom_employment_type"):
+        current_employment_type = doc.custom_employment_type
+    elif hasattr(doc, "employment_type"):
+        current_employment_type = doc.employment_type
+
+    if hasattr(old_doc, "custom_employment_type"):
+        old_employment_type = old_doc.custom_employment_type
+    elif hasattr(old_doc, "employment_type"):
+        old_employment_type = old_doc.employment_type
+
+    if str(current_employment_type).strip() != str(old_employment_type).strip():
+        return True
+
     return False
 
 
 # =========================================================
-# SECTION 13: تعبئة الحقول الرئيسية
+# SECTION 14: تعبئة الحقول الرئيسية
 # =========================================================
 
 def fill_parent_fields_from_data(doc, data: dict):
@@ -1033,6 +1147,7 @@ def fill_parent_fields_from_data(doc, data: dict):
     salary_data = data.get("salary") or {}
     service_data = data.get("service") or {}
     totals_data = data.get("totals") or {}
+    full_and_final_fields = data.get("full_and_final_fields") or {}
 
     if hasattr(doc, "employee_name"):
         doc.employee_name = employee_data.get("employee_name")
@@ -1091,6 +1206,14 @@ def fill_parent_fields_from_data(doc, data: dict):
     if hasattr(doc, "custom_total_of_years"):
         doc.custom_total_of_years = service_data.get("total_years", 0)
 
+    if hasattr(doc, "custom_reason_of_leaving"):
+        doc.custom_reason_of_leaving = full_and_final_fields.get("reason_of_leaving", doc.custom_reason_of_leaving)
+
+    if hasattr(doc, "custom_employment_type"):
+        doc.custom_employment_type = full_and_final_fields.get("employment_type", doc.custom_employment_type)
+    elif hasattr(doc, "employment_type"):
+        doc.employment_type = full_and_final_fields.get("employment_type", doc.employment_type)
+
     if hasattr(doc, "total_payable_amount"):
         doc.total_payable_amount = totals_data.get("total_payable_amount", 0)
 
@@ -1102,7 +1225,7 @@ def fill_parent_fields_from_data(doc, data: dict):
 
 
 # =========================================================
-# SECTION 14: تنظيف الجداول
+# SECTION 15: تنظيف الجداول
 # =========================================================
 
 def clear_child_tables(doc):
@@ -1118,7 +1241,7 @@ def clear_child_tables(doc):
 
 
 # =========================================================
-# SECTION 15: تعبئة الجداول
+# SECTION 16: تعبئة الجداول
 # =========================================================
 
 def append_payables_rows(doc, rows: list[dict]):
@@ -1192,7 +1315,7 @@ def force_rows_status_as_settled(doc):
 
 
 # =========================================================
-# SECTION 16: الدالة الرئيسية التي تعبّي الدوكمنت
+# SECTION 17: الدالة الرئيسية التي تعبّي الدوكمنت
 # =========================================================
 
 def populate_full_and_final_doc(doc, method=None):
@@ -1202,9 +1325,22 @@ def populate_full_and_final_doc(doc, method=None):
     if not should_rebuild_full_and_final_document(doc):
         return
 
+    passed_reason_of_leaving = None
+    passed_employment_type = None
+
+    if hasattr(doc, "custom_reason_of_leaving"):
+        passed_reason_of_leaving = doc.custom_reason_of_leaving
+
+    if hasattr(doc, "custom_employment_type"):
+        passed_employment_type = doc.custom_employment_type
+    elif hasattr(doc, "employment_type"):
+        passed_employment_type = doc.employment_type
+
     data = get_full_and_final_data(
         employee=doc.employee,
         relieving_date=doc.relieving_date,
+        reason_of_leaving=passed_reason_of_leaving,
+        employment_type=passed_employment_type,
     )
 
     if not data:

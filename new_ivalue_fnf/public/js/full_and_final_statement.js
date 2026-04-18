@@ -1,5 +1,7 @@
 frappe.ui.form.on("Full and Final Statement", {
   onload(frm) {
+
+    
     if (!frm.doc.transaction_date) {
       frm.set_value("transaction_date", frappe.datetime.get_today());
     }
@@ -8,10 +10,12 @@ frappe.ui.form.on("Full and Final Statement", {
     }
 
     clear_placeholder_rows(frm);
+   
   },
 
   refresh(frm) {
     clear_placeholder_rows(frm);
+     add_full_and_final_settings_button(frm);
   },
 
 employee(frm) {
@@ -186,4 +190,22 @@ function clear_placeholder_rows(frm) {
 
   frm.refresh_field("payables");
   frm.refresh_field("receivables");
+}
+
+
+
+// زر الاعدادات 
+function add_full_and_final_settings_button(frm) {
+    let button_label = "Full and Final Settings";
+
+    if (frm.custom_buttons && frm.custom_buttons[button_label]) {
+        return;
+    }
+
+    frm.add_custom_button(button_label, function () {
+        open_full_and_final_settings(frm);
+    });
+}
+function open_full_and_final_settings(frm) {
+    frappe.set_route("List", "Full and Final Settings");
 }

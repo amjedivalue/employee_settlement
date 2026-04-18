@@ -158,7 +158,6 @@ def get_company_default_payable_account(company: str) -> str | None:
 
     return None
 
-
 def get_company_employee_advance_account(company: str) -> str | None:
     """
     جلب حساب السلف من الشركة
@@ -181,7 +180,56 @@ def get_company_employee_advance_account(company: str) -> str | None:
                 return field_value
 
     return None
+# =====================================================================================
+#دالة التحقق انه هناك اعدادات للشركة
+#=======================================================================================
+def validate_full_and_final_settings_exists(company: str):
+    """
+    التأكد أن الشركة لها شاشة إعدادات Full and Final
+    """
+    if not company:
+        frappe.throw(_("Company is required to continue."))
 
+    settings_name = frappe.db.get_value(
+        "Full and Final Settings",
+        {"company": company},
+        "name",
+    )
+
+    if not settings_name:
+        frappe.throw(
+            _("Please create Full and Final Settings first for company: {0}").format(company)
+        )
+
+# =====================================================================================
+# تغيير اسماء الحقول بناء ع الاعداتات 
+#=======================================================================================
+def get_component_setting_for_company(company: str, component_key: str):
+    """
+    جلب إعداد عنصر محدد من شاشة Full and Final Settings لنفس الشركة
+    """
+    if not company:
+        return None
+
+    if not component_key:
+        return None
+
+    settings_name = frappe.db.get_value(
+        "Full and Final Settings",
+        {"company": company},
+        "name",
+    )
+
+    if not settings_name:
+        return None
+
+    settings_doc = frappe.get_doc("Full and Final Settings", settings_name)
+
+    for row in settings_doc.components:
+        if row.component_key == component_key:
+            return row
+
+    return None
 
 def get_company_letter_head(company: str) -> str | None:
     """
@@ -525,13 +573,20 @@ def get_leave_encashment_rows(employee: str, end_date) -> list[dict]:
 def build_leave_encashment_payable_rows(
     leave_rows: list[dict],
     daily_rate: float,
-    account: str
+    company: str
 ) -> tuple[list[dict], float]:
     """
     تحويل أرصدة الإجازات إلى سطور مستحقات
     """
     payable_rows = []
     total_amount = 0.0
+    component_setting = get_component_setting_for_company(company, "Leaves")
+
+    if not component_setting:
+        return payable_rows, total_amount
+
+    if not component_setting.is_enabled:
+        return payable_rows, total_amount
 
     for leave_row in leave_rows:
         leave_balance = flt(leave_row.get("balance"), 2)
@@ -542,13 +597,18 @@ def build_leave_encashment_payable_rows(
 
         if leave_amount <= 0:
             continue
+        leave_type_name = leave_row.get("leave_type") or "Leave"
 
+        final_component_name = leave_type_name
+
+        if component_setting.display_name:
+            final_component_name = f" {component_setting.display_name}({leave_type_name })"
         row = {
             "component_key": "leave_encashment",
-            "component": leave_row.get("leave_type"),
+            "component": final_component_name,
             "reference_document_type": "Leave Allocation",
             "reference_document": leave_row.get("allocation_ref"),
-            "account": account,
+            "account": component_setting.account or get_company_default_payable_account(company),
             "amount": leave_amount,
             "status": "Settled",
             "custom_number_of_days": leave_balance,
@@ -564,23 +624,29 @@ def build_leave_encashment_payable_rows(
 # SECTION 7: أجر أيام العمل
 # =========================================================
 
-def build_salary_days_payable_row(salary_data: dict, account: str) -> tuple[list[dict], float]:
+def build_salary_days_payable_row(salary_data: dict, company: str) -> tuple[list[dict], float]:
     """
     بناء سطر أجر أيام العمل
     """
     payable_rows = []
     total_amount = 0.0
+    component_setting = get_component_setting_for_company(company, "Salary Days")
 
+    if not component_setting:
+        return payable_rows, total_amount
+
+    if not component_setting.is_enabled:
+        return payable_rows, total_amount
     salary_amount = flt(salary_data.get("amount"))
     worked_days = flt(salary_data.get("worked_days"), 2)
 
     if salary_amount > 0:
         row = {
             "component_key": "salary_days",
-            "component": "Salary days",
+            "component": component_setting.display_name or "Salary Days",
+            "account": component_setting.account or get_company_default_payable_account(company),
             "reference_document_type": "Salary Structure Assignment",
             "reference_document": salary_data.get("assignment_name"),
-            "account": account,
             "amount": salary_amount,
             "status": "Settled",
             "custom_number_of_days": worked_days,
@@ -609,7 +675,13 @@ def build_employee_advance_receivable_rows(employee: str) -> tuple[list[dict], f
         frappe.throw(_("Employee not found."))
 
     company = employee_data.get("company")
-    advance_account = get_company_employee_advance_account(company)
+    component_setting = get_component_setting_for_company(company, "Employee Advance")
+
+    if not component_setting:
+        return receivable_rows, total_amount
+
+    if not component_setting.is_enabled:
+        return receivable_rows, total_amount
 
     employee_advances = frappe.get_all(
         "Employee Advance",
@@ -622,6 +694,7 @@ def build_employee_advance_receivable_rows(employee: str) -> tuple[list[dict], f
             "advance_amount",
             "paid_amount",
             "claimed_amount",
+            "purpose"
         ],
         order_by="posting_date desc",
     )
@@ -638,13 +711,18 @@ def build_employee_advance_receivable_rows(employee: str) -> tuple[list[dict], f
 
         if not advance.get("name"):
             continue
+        advance_purpose = advance.get("purpose") or advance.get("name") or "Employee Advance"
 
+        final_component_name = advance_purpose
+
+        if component_setting.display_name:
+            final_component_name = f" {component_setting.display_name} ({advance_purpose})"
         row = {
             "component_key": "employee_advance",
-            "component": "Employee Advance",
+            "component": final_component_name,
             "reference_document_type": "Employee Advance",
             "reference_document": advance.get("name"),
-            "account": advance_account,
+            "account": component_setting.account or get_company_employee_advance_account(company),            
             "amount": outstanding_amount,
             "status": "Settled",
             "custom_number_of_days": 0,
@@ -667,11 +745,20 @@ def build_expense_claim_rows(employee: str, company: str) -> tuple[list[dict], l
     المنطق هنا:
     - إذا المتبقي موجب => الشركة بدها تدفع للموظف => مستحقات
     - إذا المتبقي سالب => الموظف عليه للشركة => استقطاعات
-    """
+   
+   
+     """
     payable_rows = []
     receivable_rows = []
     total_payable = 0.0
     total_receivable = 0.0
+    component_setting = get_component_setting_for_company(company, "Expense Claim")
+
+    if not component_setting:
+        return payable_rows, receivable_rows, total_payable, total_receivable
+
+    if not component_setting.is_enabled:
+        return payable_rows, receivable_rows, total_payable, total_receivable
 
     default_account = get_company_default_payable_account(company)
 
@@ -703,6 +790,9 @@ def build_expense_claim_rows(employee: str, company: str) -> tuple[list[dict], l
             base_amount = claimed_amount
 
         outstanding_amount = flt(base_amount - reimbursed_amount, 2)
+        
+        final_component_name = component_setting.display_name or "Expense Claim"
+        
 
         if outstanding_amount == 0:
             continue
@@ -710,10 +800,10 @@ def build_expense_claim_rows(employee: str, company: str) -> tuple[list[dict], l
         if outstanding_amount > 0:
             payable_row = {
                 "component_key": "expense_claim",
-                "component": "Expense Claim",
+                "component": final_component_name or "Expense Claim",
                 "reference_document_type": "Expense Claim",
                 "reference_document": expense_claim.get("name"),
-                "account": default_account,
+                "account": component_setting.account or get_company_default_payable_account(company),
                 "amount": outstanding_amount,
                 "status": "Settled",
                 "custom_number_of_days": 0,
@@ -726,10 +816,10 @@ def build_expense_claim_rows(employee: str, company: str) -> tuple[list[dict], l
         if outstanding_amount < 0:
             receivable_row = {
                 "component_key": "expense_claim",
-                "component": "Expense Claim",
+                "component": final_component_name or "Expense Claim",
                 "reference_document_type": "Expense Claim",
                 "reference_document": expense_claim.get("name"),
-                "account": default_account,
+               "account": component_setting.account or get_company_default_payable_account(company),
                 "amount": abs(outstanding_amount),
                 "status": "Settled",
                 "custom_number_of_days": 0,
@@ -780,8 +870,6 @@ def build_additional_salary_rows(
     total_payable = 0.0
     total_receivable = 0.0
 
-    default_account = get_company_default_payable_account(company)
-
     month_start = get_month_first_day(relieving_date)
     month_end = get_month_last_day(relieving_date)
 
@@ -816,12 +904,32 @@ def build_additional_salary_rows(
         salary_component = additional_salary.get("salary_component")
         component_type = get_salary_component_type(salary_component)
 
+        if component_type == "Earning":
+            component_setting = get_component_setting_for_company(company, "Additional Salary Earning")
+        elif component_type == "Deduction":
+            component_setting = get_component_setting_for_company(company, "Additional Salary Deduction")
+        else:
+            continue
+
+        if not component_setting:
+            continue
+
+        if not component_setting.is_enabled:
+            continue
+
+        component_name = salary_component or "Additional Salary"
+
+        final_component_name = component_name
+
+        if component_setting.display_name:
+            final_component_name = f" {component_setting.display_name} ({component_name})"
+
         row_data = {
             "component_key": "additional_salary",
-            "component": salary_component or "Additional Salary",
+            "component": final_component_name,
             "reference_document_type": "Additional Salary",
             "reference_document": additional_salary.get("name"),
-            "account": default_account,
+            "account": component_setting.account or get_company_default_payable_account(company),
             "amount": amount,
             "status": "Settled",
             "custom_number_of_days": 0,
@@ -883,6 +991,7 @@ def get_full_and_final_data(
         frappe.throw(_("Employee not found."))
 
     company = employee_data.get("company")
+    validate_full_and_final_settings_exists(company)
     joining_date = employee_data.get("date_of_joining")
     final_date = getdate(relieving_date or employee_data.get("relieving_date"))
 
@@ -918,13 +1027,13 @@ def get_full_and_final_data(
 
     salary_days_rows, salary_days_total = build_salary_days_payable_row(
         salary_data,
-        default_payable_account,
+        company,
     )
 
     leave_encashment_rows, leave_encashment_total = build_leave_encashment_payable_rows(
         leave_balance_rows,
         salary_data.get("daily_rate"),
-        default_payable_account,
+        company,
     )
 
     employee_advance_rows, employee_advance_total = build_employee_advance_receivable_rows(employee)

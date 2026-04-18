@@ -1,0 +1,56 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "creation": "2026-04-17 22:27:00.246360",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "component_key",
+  "display_name",
+  "account",
+  "is_enabled"
+ ],
+ "fields": [
+  {
+   "fieldname": "component_key",
+   "fieldtype": "Select",
+   "hidden": 1,
+   "in_list_view": 1,
+   "label": "Component Key",
+   "options": "Salary Days\nLeaves\nExpense Claim\nEmployee Advance\nGratuity\nAdditional Salary Earning\nAdditional Salary Deduction"
+  },
+  {
+   "fieldname": "display_name",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Display Name"
+  },
+  {
+   "fieldname": "account",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Account",
+   "options": "Account"
+  },
+  {
+   "default": "0",
+   "fieldname": "is_enabled",
+   "fieldtype": "Check",
+   "in_standard_filter": 1,
+   "label": "Auto Pull"
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "istable": 1,
+ "links": [],
+ "modified": "2026-04-18 03:19:31.157335",
+ "modified_by": "Administrator",
+ "module": "iValue FnF new",
+ "name": "Full and Final Component Setting",
+ "owner": "Administrator",
+ "permissions": [],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}

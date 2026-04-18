@@ -157,6 +157,37 @@ def calculate_saudi_gratuity_amount(
 
     return flt(final_gratuity_amount, 2)
 
+# =========================================================
+# الاعدات والتحكم بالظهور 
+# =========================================================
+
+def get_component_setting_for_company(company: str, component_key: str):
+    """
+    جلب إعداد عنصر محدد من شاشة Full and Final Settings لنفس الشركة
+    """
+    if not company:
+        return None
+
+    if not component_key:
+        return None
+
+    settings_name = frappe.db.get_value(
+        "Full and Final Settings",
+        {"company": company},
+        "name",
+    )
+
+    if not settings_name:
+        return None
+
+    settings_doc = frappe.get_doc("Full and Final Settings", settings_name)
+
+    for row in settings_doc.components:
+        if row.component_key == component_key:
+            return row
+
+    return None
+
 
 # =========================================================
 # SECTION 5: بناء سطر المكافأة لجدول المستحقات
@@ -176,6 +207,13 @@ def build_gratuity_payable_row(
     """
     payable_rows = []
     total_amount = 0.0
+    component_setting = get_component_setting_for_company(company, "Gratuity")
+
+    if not component_setting:
+        return payable_rows, total_amount
+
+    if not component_setting.is_enabled:
+        return payable_rows, total_amount
 
     total_years = flt(service_data.get("total_years"), 6)
     last_salary = flt(salary_data.get("breakdown", {}).get("monthly_total"), 2)
@@ -192,11 +230,11 @@ def build_gratuity_payable_row(
         return payable_rows, total_amount
 
     row = {
-        "component_key": "gratuity",
-        "component": "Gratuity",
+        "component_key": "Gratuity",
+        "component": component_setting.display_name or "Gratuity",
         "reference_document_type": "Employee",
         "reference_document": employee,
-        "account": account,
+        "account": component_setting.account or account,
         "amount": gratuity_amount,
         "status": "Settled",
         "custom_number_of_days": 0,

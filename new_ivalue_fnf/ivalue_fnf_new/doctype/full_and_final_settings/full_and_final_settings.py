@@ -10,6 +10,7 @@ class FullandFinalSettings(Document):
     def validate(self):
         self.validate_company_is_not_duplicated()
         self.add_default_components_if_missing()
+        self.validate_gratuity_for_saudi_only()
 
     def validate_company_is_not_duplicated(self):
         """
@@ -51,7 +52,7 @@ class FullandFinalSettings(Document):
             },
             {
                 "component_key": "Leaves",
-                "display_name": "Encashment",
+                "display_name": "Leaves",
                 "account": default_payable_account,
                 "is_enabled": 0,
             },
@@ -135,3 +136,18 @@ class FullandFinalSettings(Document):
                     return field_value
 
         return None
+
+    def validate_gratuity_for_saudi_only(self):
+            """
+            منع تفعيل خيار المكافأة إذا لم تكن الشركة في السعودية
+            """
+            for row in self.components:
+                # نتحقق إذا كان السطر يخص المكافأة ومفعل
+                if row.component_key == "Gratuity" and row.is_enabled:
+                    # جلب بلد الشركة
+                    company_country = frappe.db.get_value("Company", self.company, "country")
+                    
+                    if company_country != "Saudi Arabia":
+                        frappe.throw(
+                            _("Gratuity component can only be enabled for companies located in Saudi Arabia. Current company country is {0}").format(company_country)
+                        )

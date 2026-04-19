@@ -993,7 +993,7 @@ def get_full_and_final_data(
     company = employee_data.get("company")
     validate_full_and_final_settings_exists(company)
     joining_date = employee_data.get("date_of_joining")
-    final_date = getdate(relieving_date or employee_data.get("relieving_date"))
+    final_date = getdate( employee_data.get("relieving_date"))
 
     if not joining_date:
         frappe.throw(_("Employee Date of Joining is missing."))

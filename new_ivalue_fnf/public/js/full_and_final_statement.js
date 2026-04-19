@@ -19,26 +19,41 @@ frappe.ui.form.on("Full and Final Statement", {
   },
 
 employee(frm) {
-  validate_full_and_final_settings_after_employee_select(frm);
-  if (!frm.doc.employee) {
-    clear_employee_related_data(frm);
-    return;
-  }
+    if (!frm.doc.employee) {
+        clear_employee_related_data(frm);
+        return;
+    }
 
-  clear_placeholder_rows(frm);
+    frappe.dom.freeze(__("Loading employee details..."));
 
-  setTimeout(() => {
-    clear_placeholder_rows(frm);
-  }, 300);
+    setTimeout(() => {
+        clear_placeholder_rows(frm);
+        frappe.dom.unfreeze();
+    }, 1200);
 },
 
   relieving_date(frm) {
     clear_placeholder_rows(frm);
   },
 
-  validate(frm) {
+validate(frm) {
     clear_placeholder_rows(frm);
-  },
+
+    if (frm.doc.employee) {
+
+        if (!frm.doc.custom_user_id || !frm.doc.relieving_date) {
+
+            frappe.msgprint({
+                title: __("Please Wait"),
+                message: __("Employee data is still loading. Please save again in one second."),
+                indicator: "orange"
+            });
+
+            frappe.validated = false;
+            return;
+        }
+    }
+},
   after_workflow_action:async function(frm){
     if(frm.doc.workflow_state === "Employee Sigen"){
       upload_on_zoho(frm)

@@ -36,14 +36,14 @@
    "default": "0",
    "fieldname": "is_enabled",
    "fieldtype": "Check",
-   "in_standard_filter": 1,
+   "in_list_view": 1,
    "label": "Auto Pull"
   }
  ],
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2026-04-18 21:22:23.859513",
+ "modified": "2026-04-19 14:27:41.382546",
  "modified_by": "Administrator",
  "module": "iValue FnF new",
  "name": "Full and Final Component Setting",

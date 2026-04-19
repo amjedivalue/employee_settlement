@@ -4,6 +4,8 @@ frappe.ui.form.on("Full and Final Settings", {
         lock_component_key_column(frm);
         set_account_query_for_company(frm);
         make_grid_clean_for_hr(frm);
+     
+        
     },
 
     company: function (frm) {
@@ -74,8 +76,3 @@ function set_account_query_for_company(frm) {
     }
 }
 
-function make_grid_clean_for_hr(frm) {
-    if (frm.fields_dict.components && frm.fields_dict.components.grid) {
-        frm.fields_dict.components.grid.refresh();
-    }
-}

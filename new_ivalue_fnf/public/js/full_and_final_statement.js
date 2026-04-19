@@ -19,6 +19,7 @@ frappe.ui.form.on("Full and Final Statement", {
   },
 
 employee(frm) {
+  validate_full_and_final_settings_after_employee_select(frm);
   if (!frm.doc.employee) {
     clear_employee_related_data(frm);
     return;

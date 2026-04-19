@@ -5,7 +5,7 @@ from frappe import _
 from frappe.utils import flt, getdate, nowdate, get_first_day, relativedelta
 
 from new_ivalue_fnf.api.gratuity import build_gratuity_payable_row
-
+from new_ivalue_fnf.api.fnf_summary import build_full_and_final_summary
 
 # =========================================================
 # SECTION 1: دوال مساعدة للتواريخ
@@ -716,7 +716,7 @@ def build_employee_advance_receivable_rows(employee: str) -> tuple[list[dict], f
         final_component_name = advance_purpose
 
         if component_setting.display_name:
-            final_component_name = f" {component_setting.display_name} ({advance_purpose})"
+            final_component_name = f" {component_setting.display_name}"# {advance_purpose}
         row = {
             "component_key": "employee_advance",
             "component": final_component_name,
@@ -922,7 +922,7 @@ def build_additional_salary_rows(
         final_component_name = component_name
 
         if component_setting.display_name:
-            final_component_name = f" {component_setting.display_name} ({component_name})"
+            final_component_name = f"{component_name}-{component_setting.display_name} "
 
         row_data = {
             "component_key": "additional_salary",
@@ -1464,3 +1464,5 @@ def populate_full_and_final_doc(doc, method=None):
     append_receivables_rows(doc, data.get("receivables") or [])
     append_carry_forward_leave_rows(doc, data.get("carry_forward_leaves") or [])
     force_rows_status_as_settled(doc)
+    if hasattr(doc, "custom_settlement_summary"):
+        doc.custom_settlement_summary = build_full_and_final_summary(doc)

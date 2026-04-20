@@ -8,6 +8,8 @@
   "company",
   "components",
   "company_country",
+  "section_break_wugj",
+  "saudi_labor",
   "section_break_yghr",
   "leave_format",
   "column_break_qqtk",
@@ -68,11 +70,21 @@
   {
    "fieldname": "column_break_gwrp",
    "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "section_break_wugj",
+   "fieldtype": "Section Break"
+  },
+  {
+   "default": "Gratuity Calculation Basis\n\nEnd of Service Gratuity has been calculated automatically based on approved company settings and Saudi labor practice rules configured in the system.\n\nCalculation depends on the following factors:\n\n* Employee service period (from Date of Joining to Relieving Date)\n* Last approved salary used for gratuity calculation\n* Type of employment / contract\n* Reason of leaving\n* Minimum eligible service period (if configured)\n* Applicable gratuity rules in system settings\n\nStandard Gratuity Rule\n\n* First 5 years of service: Half month salary for each completed year\n* More than 5 years of service: One full month salary for each additional completed year\n\nResignation Rule\n\nIf the leaving reason is Resignation, the calculated gratuity amount is adjusted according to service duration as follows:\n\n* Less than 2 years of service: No gratuity entitlement\n* From 2 years to less than 5 years: One third of gratuity amount\n* From 5 years to less than 10 years: Two thirds of gratuity amount\n* 10 years of service and above: Full gratuity amount\n\nFinal Amount\n\nThe final gratuity amount displayed in this document reflects the applicable rule based on employee service period, leaving reason, salary basis, and approved company settings.\n\nCalculated based on Saudi Labor Law Articles 84 and 85.\n",
+   "fieldname": "saudi_labor",
+   "fieldtype": "Long Text",
+   "label": "Saudi Labor"
   }
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-04-20 15:14:57.346189",
+ "modified": "2026-04-20 16:45:22.414516",
  "modified_by": "Administrator",
  "module": "iValue FnF new",
  "name": "Full and Final Settings",

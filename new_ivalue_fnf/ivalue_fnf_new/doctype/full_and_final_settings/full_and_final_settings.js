@@ -8,15 +8,21 @@ frappe.ui.form.on("Full and Final Settings", {
         lock_component_key_column(frm);
         set_account_query_for_company(frm);
             add_back_to_full_and_final_button(frm);
+                    toggle_saudi_labor_field(frm);
+
 
      
         
     },
+  
 
     company: function (frm) {
         set_account_query_for_company(frm);
     }
     ,
+     company_country: function (frm) {
+        toggle_saudi_labor_field(frm);
+    }
      
   
 

@@ -7,7 +7,13 @@
  "field_order": [
   "company",
   "components",
-  "company_country"
+  "company_country",
+  "section_break_yghr",
+  "leave_format",
+  "column_break_qqtk",
+  "employee_advnace_format",
+  "column_break_gwrp",
+  "additional_salary_format"
  ],
  "fields": [
   {
@@ -30,11 +36,43 @@
    "hidden": 1,
    "label": "company_country",
    "read_only": 1
+  },
+  {
+   "fieldname": "section_break_yghr",
+   "fieldtype": "Section Break",
+   "label": "Multiple Records Display Settings"
+  },
+  {
+   "default": "New Name",
+   "fieldname": "employee_advnace_format",
+   "fieldtype": "Select",
+   "label": "Employee Advnace Format",
+   "options": "New Name\nPurpose - New Name\nNew Name - Purpose"
+  },
+  {
+   "fieldname": "leave_format",
+   "fieldtype": "Select",
+   "label": "Leave Format ",
+   "options": "New Name\nLeave Type- New Name\nNew Name - Leave Type"
+  },
+  {
+   "fieldname": "additional_salary_format",
+   "fieldtype": "Select",
+   "label": "Additional Salary Format",
+   "options": "Component\nComponent - New Name\nNew Name -Component"
+  },
+  {
+   "fieldname": "column_break_qqtk",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "column_break_gwrp",
+   "fieldtype": "Column Break"
   }
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-04-19 14:10:31.083258",
+ "modified": "2026-04-20 15:14:57.346189",
  "modified_by": "Administrator",
  "module": "iValue FnF new",
  "name": "Full and Final Settings",

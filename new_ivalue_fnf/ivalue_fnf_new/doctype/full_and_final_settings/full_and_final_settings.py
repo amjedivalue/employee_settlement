@@ -68,12 +68,7 @@ class FullandFinalSettings(Document):
                 "account": default_employee_advance_account,
                 "is_enabled": 0,
             },
-            {
-                "component_key": "Gratuity",
-                "display_name": "Gratuity",
-                "account": default_payable_account,
-                "is_enabled": 0,
-            },
+         
             {
                 "component_key": "Additional Salary Earning",
                 "display_name": "Addition",
@@ -86,7 +81,17 @@ class FullandFinalSettings(Document):
                 "account": default_payable_account,
                 "is_enabled": 0,
             },
+            
         ]
+        company_country = frappe.db.get_value("Company", self.company, "country")
+        # فقط إذا الشركة سعودية نضيف سطر المكافأة
+        if company_country == "Saudi Arabia":
+            default_rows.append({
+                "component_key": "Gratuity",
+                "display_name": "Gratuity",
+                "account": default_payable_account,
+                "is_enabled": 0,
+            })
 
         for row_data in default_rows:
             self.append("components", row_data)

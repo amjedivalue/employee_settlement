@@ -91,7 +91,27 @@ def is_date_in_same_month(target_date, reference_date) -> bool:
         return False
 
     return True
+# =====================================================================================
+# تغيير اسماء الحقول المتعددة من مصدر واحد ت  سحب شجل الاعدادات
+# سحب حقل من سجل الاعدادات ووشع شلروط عليه 
+#=======================================================================================
+def get_settings_doc(company: str):
+    """
+    جلب مستند Full and Final Settings لنفس الشركة
+    """
+    if not company:
+        return None
 
+    settings_name = frappe.db.get_value(
+        "Full and Final Settings",
+        {"company": company},
+        "name",
+    )
+
+    if not settings_name:
+        return None
+
+    return frappe.get_doc("Full and Final Settings", settings_name)
 
 # =========================================================
 # SECTION 2: جلب البيانات الأساسية
@@ -200,6 +220,8 @@ def validate_full_and_final_settings_exists(company: str):
         frappe.throw(
             _("Please create Full and Final Settings first for company: {0}").format(company)
         )
+
+
 
 # =====================================================================================
 # تغيير اسماء الحقول بناء ع الاعداتات 
@@ -600,9 +622,15 @@ def build_leave_encashment_payable_rows(
         leave_type_name = leave_row.get("leave_type") or "Leave"
 
         final_component_name = leave_type_name
-
+        #جلب سجل الاعدادات 
+        settings_doc=get_settings_doc(company)
         if component_setting.display_name:
-            final_component_name = f" {component_setting.display_name}({leave_type_name })"
+            if settings_doc.leave_format=="New Name":
+                final_component_name = f" {component_setting.display_name}"
+            if settings_doc.leave_format=="Leave Type- New Name":
+                final_component_name = f"{leave_type_name } - {component_setting.display_name}"
+            if settings_doc.leave_format=="New Name - Leave Type":
+                final_component_name = f"{component_setting.display_name} - {leave_type_name }"
         row = {
             "component_key": "leave_encashment",
             "component": final_component_name,
@@ -656,7 +684,6 @@ def build_salary_days_payable_row(salary_data: dict, company: str) -> tuple[list
         total_amount = flt(total_amount + salary_amount, 2)
 
     return payable_rows, flt(total_amount, 2)
-
 
 # =========================================================
 # SECTION 8: السلف
@@ -714,9 +741,15 @@ def build_employee_advance_receivable_rows(employee: str) -> tuple[list[dict], f
         advance_purpose = advance.get("purpose") or advance.get("name") or "Employee Advance"
 
         final_component_name = advance_purpose
-
+        settings_doc=get_settings_doc(company)
         if component_setting.display_name:
-            final_component_name = f" {component_setting.display_name}"# {advance_purpose}
+            if settings_doc.employee_advnace_format == "New Name - Purpose":
+                 final_component_name = f"{component_setting.display_name} - {advance_purpose}"
+            if settings_doc.employee_advnace_format == "Purpose - New Name":
+                 final_component_name = f"{advance_purpose} - {component_setting.display_name}"
+            if settings_doc.employee_advnace_format=="New Name":
+                final_component_name = f" {component_setting.display_name}" 
+             
         row = {
             "component_key": "employee_advance",
             "component": final_component_name,
@@ -920,9 +953,15 @@ def build_additional_salary_rows(
         component_name = salary_component or "Additional Salary"
 
         final_component_name = component_name
-
+        setting_doc=get_settings_doc(company)
         if component_setting.display_name:
-            final_component_name = f"{component_name}-{component_setting.display_name} "
+            if setting_doc.additional_salary_format=="Component":
+                final_component_name = f"{component_name}"
+                
+            if setting_doc.additional_salary_format=="Component - New Name":
+                final_component_name = f"{component_name} - {component_setting.display_name} "
+            if setting_doc.additional_salary_format=="New Name - Component":
+                final_component_name = f"{component_setting.display_name} - {component_name} "
 
         row_data = {
             "component_key": "additional_salary",

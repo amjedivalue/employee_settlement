@@ -1,9 +1,14 @@
 frappe.ui.form.on("Full and Final Settings", {
+   
+   
+    
+   
     refresh: function (frm) {
         hide_add_row_button(frm);
         lock_component_key_column(frm);
         set_account_query_for_company(frm);
-        make_grid_clean_for_hr(frm);
+            add_back_to_full_and_final_button(frm);
+
      
         
     },
@@ -11,10 +16,16 @@ frappe.ui.form.on("Full and Final Settings", {
     company: function (frm) {
         set_account_query_for_company(frm);
     }
+    ,
+     
+  
+
+    
 });
 
 // Listener for the Child Table components
 frappe.ui.form.on("Full and Final Settings Component", {
+    
     is_enabled: function(frm, cdt, cdn) {
         let row = locals[cdt][cdn];
 
@@ -26,9 +37,12 @@ frappe.ui.form.on("Full and Final Settings Component", {
                 frappe.msgprint(__("Please select a company first."));
                 return;
             }
+frappe.dom.freeze(__("building setting page"));
 
             // Fetch company country to validate
             frappe.db.get_value("Company", frm.doc.company, "country", (r) => {
+                    frappe.dom.unfreeze();
+
                 if (r && r.country !== "Saudi Arabia") {
                     
                     // Revert the checkbox
@@ -76,3 +90,14 @@ function set_account_query_for_company(frm) {
     }
 }
 
+function add_back_to_full_and_final_button(frm) {
+    let button_label = "Back to Full and Final";
+
+    if (frm.custom_buttons && frm.custom_buttons[button_label]) {
+        return;
+    }
+
+    frm.add_custom_button(button_label, function () {
+        frappe.set_route("List", "Full and Final Statement");
+    });
+}

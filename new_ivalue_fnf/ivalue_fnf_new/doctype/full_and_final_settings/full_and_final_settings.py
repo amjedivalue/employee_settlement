@@ -71,13 +71,13 @@ class FullandFinalSettings(Document):
          
             {
                 "component_key": "Additional Salary Earning",
-                "display_name": "Addition",
+                "display_name": "Additional Salary Earning",
                 "account": default_payable_account,
                 "is_enabled": 0,
             },
             {
                 "component_key": "Additional Salary Deduction",
-                "display_name": "Deduction",
+                "display_name": "Additional Salary Deduction",
                 "account": default_payable_account,
                 "is_enabled": 0,
             },

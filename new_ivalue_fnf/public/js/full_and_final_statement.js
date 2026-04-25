@@ -18,18 +18,13 @@ frappe.ui.form.on("Full and Final Statement", {
      add_full_and_final_settings_button(frm);
   },
 
-employee(frm) {
+employee: async function(frm) {
     if (!frm.doc.employee) {
         clear_employee_related_data(frm);
         return;
     }
 
-    frappe.dom.freeze(__("Loading employee details..."));
-
-    setTimeout(() => {
-        clear_placeholder_rows(frm);
-        frappe.dom.unfreeze();
-    }, 1200);
+    await load_employee_basic_data(frm);
 },
 
   relieving_date(frm) {
@@ -45,9 +40,7 @@ validate(frm) {
 
             frappe.msgprint({
                 title: __("Please Wait"),
-                message: __("Employee data is still loading. Please save again in one second."),
-                indicator: "orange"
-            });
+message: __("Employee details are incomplete. Please reselect the employee and try again."),            });
 
             frappe.validated = false;
             return;
@@ -224,4 +217,122 @@ function add_full_and_final_settings_button(frm) {
 }
 function open_full_and_final_settings(frm) {
     frappe.set_route("List", "Full and Final Settings");
+}
+frappe.ui.form.on("Full and Final Outstanding Statement", {
+    component: function(frm, cdt, cdn) {
+        apply_manual_row_defaults(frm, cdt, cdn);
+    },
+
+    amount: function(frm, cdt, cdn) {
+        apply_manual_row_defaults(frm, cdt, cdn);
+    }
+});
+
+function apply_manual_row_defaults(frm, cdt, cdn) {
+    let row = locals[cdt][cdn];
+
+    if (!row) {
+        return;
+    }
+
+    if (!frm.doc.company) {
+        return;
+    }
+
+    if (!row.component) {
+        return;
+    }
+
+    if (!row.amount || row.amount <= 0) {
+        return;
+    }
+
+    if (row.is_manual_row) {
+        return;
+    }
+
+    let table_name = "Payables";
+
+    if (row.parentfield === "receivables") {
+        table_name = "Receivables";
+    }
+
+    frappe.call({
+    method: "new_ivalue_fnf.api.full_and_final.manual_rows.get_manual_row_defaults",
+    args: {
+        company: frm.doc.company,
+        table_name: table_name,
+        component: row.component,
+        amount: row.amount,
+        document_name: frm.doc.name || ""
+    },
+    callback: function(response) {
+        if (!response.message) {
+            return;
+        }
+
+        let data = response.message;
+
+        frappe.model.set_value(cdt, cdn, "account", data.account);
+        frappe.model.set_value(cdt, cdn, "status", data.status);
+        frappe.model.set_value(cdt, cdn, "is_manual_row", data.is_manual_row);
+    },
+    error: function() {
+        frappe.model.set_value(cdt, cdn, "account", "");
+        frappe.model.set_value(cdt, cdn, "status", "");
+        frappe.model.set_value(cdt, cdn, "is_manual_row", 0);
+    }
+});
+}
+async function load_employee_basic_data(frm) {
+    frappe.dom.freeze(__("Loading employee details..."));
+
+    try {
+        let response = await frappe.db.get_value(
+            "Employee",
+            frm.doc.employee,
+            [
+                "employee_name",
+                "company",
+                "department",
+                "designation",
+                "date_of_joining",
+                "relieving_date",
+                "user_id",
+                "employment_type"
+            ]
+        );
+
+        if (!response || !response.message) {
+            frappe.msgprint({
+                title: __("Employee Not Found"),
+                message: __("Could not load employee details. Please select the employee again."),
+                indicator: "red"
+            });
+            return;
+        }
+
+        let employee = response.message;
+
+        await frm.set_value("employee_name", employee.employee_name || "");
+        await frm.set_value("company", employee.company || "");
+        await frm.set_value("department", employee.department || "");
+        await frm.set_value("designation", employee.designation || "");
+        await frm.set_value("date_of_joining", employee.date_of_joining || "");
+        await frm.set_value("relieving_date", employee.relieving_date || "");
+        await frm.set_value("custom_user_id", employee.user_id || "");
+        await frm.set_value("custom_employment_type", employee.employment_type || "");
+
+        clear_placeholder_rows(frm);
+    } catch (error) {
+        console.error(error);
+
+        frappe.msgprint({
+            title: __("Loading Failed"),
+            message: __("Could not load employee details. Please try again."),
+            indicator: "red"
+        });
+    } finally {
+        frappe.dom.unfreeze();
+    }
 }

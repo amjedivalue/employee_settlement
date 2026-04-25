@@ -9,8 +9,11 @@ from frappe import _
 class FullandFinalSettings(Document):
     def validate(self):
         self.validate_company_is_not_duplicated()
+
+
         self.add_default_components_if_missing()
         self.validate_gratuity_for_saudi_only()
+        self.add_default_manual_row_settings_if_missing()
 
     def validate_company_is_not_duplicated(self):
         """
@@ -78,7 +81,7 @@ class FullandFinalSettings(Document):
             {
                 "component_key": "Additional Salary Deduction",
                 "display_name": "Additional Salary Deduction",
-                "account": default_payable_account,
+                "account":default_employee_advance_account ,
                 "is_enabled": 0,
             },
             
@@ -95,7 +98,7 @@ class FullandFinalSettings(Document):
 
         for row_data in default_rows:
             self.append("components", row_data)
-
+    
     def get_company_default_payable_account(self, company: str) -> str | None:
         """
         جلب الحساب الافتراضي الذي سنستخدمه للمستحقات
@@ -112,10 +115,13 @@ class FullandFinalSettings(Document):
         ]
 
         for field_name in candidate_fields:
-            if hasattr(company_doc, field_name):
-                field_value = getattr(company_doc, field_name)
-                if field_value:
-                    return field_value
+            if not hasattr(company_doc, field_name):
+                 continue
+
+            account = getattr(company_doc, field_name)
+
+            if self.is_valid_company_account(account, company):
+                return account
 
         return None
 
@@ -135,10 +141,13 @@ class FullandFinalSettings(Document):
         ]
 
         for field_name in candidate_fields:
-            if hasattr(company_doc, field_name):
-                field_value = getattr(company_doc, field_name)
-                if field_value:
-                    return field_value
+            if not hasattr(company_doc, field_name):
+                  continue
+
+            account = getattr(company_doc, field_name)
+
+            if self.is_valid_company_account(account, company):
+                return account
 
         return None
 
@@ -156,3 +165,65 @@ class FullandFinalSettings(Document):
                         frappe.throw(
                             _("Gratuity component can only be enabled for companies located in Saudi Arabia. Current company country is {0}").format(company_country)
                         )
+    def is_valid_company_account(self, account: str | None, company: str) -> bool:
+        """
+        التأكد أن الحساب مناسب للشركة الحالية.
+
+        ترجع True فقط إذا:
+        - الحساب موجود
+        - الحساب تابع لنفس الشركة
+        - الحساب ليس Group
+        """
+        if not account:
+            return False
+
+        account_data = frappe.db.get_value(
+            "Account",
+            account,
+            ["company", "is_group"],
+            as_dict=True,
+        )
+
+        if not account_data:
+            return False
+
+        if account_data.company != company:
+            return False
+
+        if account_data.is_group:
+            return False
+
+        return True
+    def add_default_manual_row_settings_if_missing(self):
+        """
+        إضافة إعدادات السطور اليدوية الافتراضية.
+
+        لماذا؟
+        لأن السطور اليدوية يجب أن تكون ثابتة مثل إعدادات components:
+        - Payables Manual Row
+        - Receivables Manual Row
+
+        المستخدم لا يضيف أنواع جديدة.
+        المستخدم فقط يحدد الحساب ويفعّل أو يعطّل.
+        """
+        if self.manual_row_settings:
+            return
+
+        default_payable_account = self.get_company_default_payable_account(self.company)
+
+        default_rows = [
+            {
+                "row_type": "Payables Manual Row",
+                "account": default_payable_account,
+                "is_enabled": 1,
+            },
+            {
+                "row_type": "Receivables Manual Row",
+                "account": default_payable_account,
+                "is_enabled": 1,
+            },
+        ]
+
+        for row_data in default_rows:
+            self.append("manual_row_settings", row_data)
+    

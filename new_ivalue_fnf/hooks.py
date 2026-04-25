@@ -9,16 +9,18 @@ app_license = "mit"
 
 doc_events = {
     "Full and Final Statement": {
-       "before_insert": "new_ivalue_fnf.api.full_and_final.set_transaction_date",
-        "validate": "new_ivalue_fnf.api.full_and_final.populate_full_and_final_doc",
-        #"before_submit": "new_ivalue_fnf.api.fnf_fix.clean_receivables"
-
+        "before_insert": "new_ivalue_fnf.api.full_and_final.service.set_transaction_date",
+        "validate": "new_ivalue_fnf.api.full_and_final.service.populate_full_and_final_doc",
+        "after_insert": "new_ivalue_fnf.api.full_and_final.service.enqueue_rebuild_after_first_insert",
     }
 }
- 
+
 doctype_js = {
     "Full and Final Statement": "public/js/full_and_final_statement.js",
     # "Full and Final Statement": "public/js/fnf_tracking.js",
+}
+override_doctype_class = {
+    "Full and Final Statement": "new_ivalue_fnf.overrides.full_and_final_statement.CustomFullandFinalStatement"
 }
 
 fixtures = [
@@ -43,34 +45,6 @@ fixtures = [
         "filters": [["workflow_state_name", "in", ["HR User", "HR Manager", "Pending Finance Director", "Pending Supporting Services Director", "Employee Sigen", "Signed", "Cancel"]]]
     },
 ]   
-
-
-
-# app_name = "new_ivalue_fnf"
-# app_title = "iValue FnF new "
-# app_publisher = "Amjad"
-# app_description = "this is a new build for FNF"
-# app_email = "Amjad.altamimi@ivalueconsult.com"
-# app_license = "mit"
-
-# # Apps
-# # ------------------
-
-
-# fixtures = [
-#     {
-#         "dt": "Custom Field",
-#         "filters": [
-#             ["dt", "in", ["Full and Final Statement", "Full and Final Outstanding Statement", "Company"]]
-#         ]
-#     },
-#     {
-#         "dt": "Print Format",
-#         "filters": [
-#             ["name", "=", "Custom Full and Final Statement"]
-#         ]
-#     }
-# ]   
 
 
 # # required_apps = []

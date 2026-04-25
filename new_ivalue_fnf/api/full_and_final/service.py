@@ -17,7 +17,6 @@ from new_ivalue_fnf.api.full_and_final.settlement_builders import (
     apply_salary_snapshot,
     build_salary_days_payable,
 )
-from new_ivalue_fnf.api.full_and_final.summary import apply_summary
 from new_ivalue_fnf.api.full_and_final.outstanding_items import (
     build_employee_advance_rows,
     build_expense_claim_rows,
@@ -163,7 +162,7 @@ def populate_full_and_final_doc(doc, method=None):
     # build_expense_claim_rows(doc)
     build_employee_advance_rows(doc)
     build_leave_encashment_rows(doc)
-    apply_summary(doc)
+    apply_totals(doc)
 
     log_trace(
         "populate finished",
@@ -209,3 +208,21 @@ def rebuild_saved_full_and_final_statement(docname: str):
     frappe.db.commit()
 
     log_trace("background rebuild finished", doc.name)
+def apply_totals(doc):
+    """
+    تحديث إجماليات Payables و Receivables بدون Summary.
+
+    السبب:
+    تم إلغاء summary.py، لكن ما زلنا نحتاج تحديث الإجماليات.
+    """
+    total_payables = 0
+    total_receivables = 0
+
+    for row in doc.payables or []:
+        total_payables += flt(row.amount)
+
+    for row in doc.receivables or []:
+        total_receivables += flt(row.amount)
+
+    doc.total_payable_amount = flt(total_payables, 2)
+    doc.total_receivable_amount = flt(total_receivables, 2)

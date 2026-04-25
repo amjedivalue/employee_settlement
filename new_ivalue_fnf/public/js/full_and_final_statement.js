@@ -15,7 +15,7 @@ frappe.ui.form.on("Full and Final Statement", {
 
   refresh(frm) {
     clear_placeholder_rows(frm);
-     add_full_and_final_settings_button(frm);
+    //  add_full_and_final_settings_button(frm);
   },
 
 employee: async function(frm) {
@@ -247,9 +247,9 @@ function apply_manual_row_defaults(frm, cdt, cdn) {
         return;
     }
 
-    if (row.is_manual_row) {
-        return;
-    }
+    if (row.is_manual_row && row.account && row.status) {
+    return;
+}
 
     let table_name = "Payables";
 
@@ -276,6 +276,17 @@ function apply_manual_row_defaults(frm, cdt, cdn) {
         frappe.model.set_value(cdt, cdn, "account", data.account);
         frappe.model.set_value(cdt, cdn, "status", data.status);
         frappe.model.set_value(cdt, cdn, "is_manual_row", data.is_manual_row);
+        if (data.reference_document_type) {
+    frappe.model.set_value(cdt, cdn, "reference_document_type", data.reference_document_type);
+}
+
+if (data.reference_document) {
+    frappe.model.set_value(cdt, cdn, "reference_document", data.reference_document);
+}
+
+if (data.remarks) {
+    frappe.model.set_value(cdt, cdn, "remarks", data.remarks);
+}
     },
     error: function() {
         frappe.model.set_value(cdt, cdn, "account", "");

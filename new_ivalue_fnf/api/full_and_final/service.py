@@ -25,7 +25,7 @@ from new_ivalue_fnf.api.full_and_final.leave_items import build_leave_encashment
 from new_ivalue_fnf.api.full_and_final.rebuild_helpers import (
     clear_auto_rows_keep_manual,
 )
-
+from new_ivalue_fnf.api.full_and_final.manual_rows import ensure_manual_row_references
 
 def log_trace(message: str, data=None):
     print(f"[FNF service] {message} | {data}")
@@ -162,6 +162,7 @@ def populate_full_and_final_doc(doc, method=None):
     # build_expense_claim_rows(doc)
     build_employee_advance_rows(doc)
     build_leave_encashment_rows(doc)
+    ensure_manual_row_references(doc)
     apply_totals(doc)
 
     log_trace(

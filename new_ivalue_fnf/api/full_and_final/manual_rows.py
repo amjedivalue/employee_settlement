@@ -53,10 +53,7 @@ def build_manual_row_data(doc, table_name: str, component: str, amount: float) -
             frappe.throw(_("Please set an account for {0} in Full and Final Settings.").format(row_type))
 
         account = setting_row.account
-
-        reference_document_type = None
-        reference_document = None
-
+        reference_document_type, reference_document = get_manual_row_reference(doc.name)
 
 
         row_data = {
@@ -129,12 +126,17 @@ def get_manual_row_defaults(company: str, table_name: str, component: str = None
     if not setting_row.account:
         frappe.throw(_("Please set an account for {0} in Full and Final Settings.").format(row_type))
 
+    reference_document_type, reference_document = get_manual_row_reference(document_name)
+
     return {
         "account": setting_row.account,
         "status": "Settled",
         "is_manual_row": 1,
+        "reference_document_type": reference_document_type,
+        "reference_document": reference_document,
+        "remarks": "Manual row created from Full and Final Statement {0}".format(document_name)
+            if reference_document else "",
     }
-
 
 def get_manual_row_type_from_table_name(table_name: str) -> str | None:
     """
@@ -165,3 +167,57 @@ def get_manual_row_setting(company: str, row_type: str):
             return row
 
     return None
+def is_saved_document_name(document_name: str | None) -> bool:
+    """
+    نتحقق أن اسم المستند حقيقي وليس New Doc.
+    """
+    if not document_name:
+        return False
+
+    document_name = str(document_name)
+
+    if document_name.startswith("new-"):
+        return False
+
+    return True
+
+
+def get_manual_row_reference(document_name: str | None):
+    """
+    مصدر السطر اليدوي هو Full and Final Statement نفسه.
+
+    السبب:
+    السطر اليدوي لا يوجد خلفه DocType ثاني مثل Leave Allocation أو Employee Advance.
+    """
+    if not is_saved_document_name(document_name):
+        return None, None
+
+    return "Full and Final Statement", document_name
+
+
+def ensure_manual_row_references(doc):
+    """
+    تثبيت Reference للسطور اليدوية قبل إنشاء Journal Entry.
+
+    مهم جدًا:
+    حتى لو الواجهة ما عبّت المرجع، السيرفر يضمن تعبئته.
+    """
+    for table_field in ["payables", "receivables"]:
+        rows = getattr(doc, table_field, []) or []
+
+        for row in rows:
+            if not getattr(row, "is_manual_row", 0):
+                continue
+
+            reference_document_type, reference_document = get_manual_row_reference(doc.name)
+
+            if reference_document_type and not row.reference_document_type:
+                row.reference_document_type = reference_document_type
+
+            if reference_document and not row.reference_document:
+                row.reference_document = reference_document
+
+            if hasattr(row, "remarks") and not row.remarks:
+                row.remarks = "Manual row created from Full and Final Statement {0}".format(
+                    doc.name
+                )

@@ -11,14 +11,17 @@ doc_events = {
     "Full and Final Statement": {
         "before_insert": "new_ivalue_fnf.api.full_and_final.service.set_transaction_date",
         "validate": "new_ivalue_fnf.api.full_and_final.service.populate_full_and_final_doc",
-        "after_insert": "new_ivalue_fnf.api.full_and_final.service.enqueue_rebuild_after_first_insert",
+        # "after_insert": "new_ivalue_fnf.api.full_and_final.service.enqueue_rebuild_after_first_insert",
     }
 }
 
 doctype_js = {
     "Full and Final Statement": "public/js/full_and_final_statement.js",
-    # "Full and Final Statement": "public/js/fnf_tracking.js",
 }
+
+
+
+# creeat journal entry autmation
 # override_doctype_class = {
 #     "Full and Final Statement": "new_ivalue_fnf.overrides.full_and_final_statement.CustomFullandFinalStatement"
 # }

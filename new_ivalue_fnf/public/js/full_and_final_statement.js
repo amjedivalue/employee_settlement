@@ -31,23 +31,56 @@ frappe.ui.form.on("Full and Final Statement", {
         clear_placeholder_rows(frm);
     },
 
-    validate(frm) {
-        clear_placeholder_rows(frm);
+    // validate(frm) {
+    //     clear_placeholder_rows(frm);
 
-        if (frm.doc.employee) {
+    //     if (frm.doc.employee) {
 
-            if (!frm.doc.custom_user_id || !frm.doc.relieving_date) {
+    //         if (!frm.doc.custom_user_id || !frm.doc.relieving_date) {
 
-                frappe.msgprint({
-                    title: __("Please Wait"),
-                    message: __("Employee details are incomplete. Please reselect the employee and try again."),
-                });
+    //             frappe.msgprint({
+    //                 title: __("Please Wait"),
+    //                 message: __("Employee details are incomplete. Please reselect the employee and try again."),
+    //             });
 
-                frappe.validated = false;
-                return;
-            }
+    //             frappe.validated = false;
+    //             return;
+    //         }
+    //     }
+    // },
+   
+   validate: async function (frm) {
+    clear_placeholder_rows(frm);
+
+    if (frm.doc.employee) {
+
+        if (!frm.doc.custom_user_id || !frm.doc.relieving_date) {
+            await load_employee_basic_data(frm);
         }
-    },
+
+      if (!frm.doc.relieving_date) {
+    frappe.msgprint({
+        title: __("Missing Relieving Date"),
+        message: __("This employee does not have a Relieving Date. Please set the Relieving Date on the Employee record, then reselect the employee."),
+        indicator: "orange"
+    });
+
+    frappe.validated = false;
+    return;
+}
+
+if (!frm.doc.custom_user_id) {
+    frappe.msgprint({
+        title: __("Missing User ID"),
+        message: __("This employee is not linked to a User. Please set the User ID on the Employee record, then reselect the employee."),
+        indicator: "orange"
+    });
+
+    frappe.validated = false;
+    return;
+}
+    }
+},
     after_workflow_action: async function (frm) {
         if (frm.doc.workflow_state === "Employee Sigen") {
             upload_on_zoho(frm)

@@ -49,12 +49,12 @@ class FullandFinalSettings(Document):
                 "account": default_expense_account,
                 "is_enabled": 0,
             },
-            {
-                "component_key": "Expense Claim",
-                "display_name": "Expense Claim",
-                "account": default_expense_account,
-                "is_enabled": 0,
-            },
+            # {
+            #     "component_key": "Expense Claim",
+            #     "display_name": "Expense Claim",
+            #     "account": default_expense_account,
+            #     "is_enabled": 0,
+            # },
             {
                 "component_key": "Employee Advance",
                 "display_name": "Employee Advance",

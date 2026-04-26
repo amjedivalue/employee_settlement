@@ -106,17 +106,19 @@ class FullandFinalSettings(Document):
         )
 
         default_rows = [
-            {
-                "row_type": "Payables Manual Row",
-                "account": default_expense_account,
-                "is_enabled": 1,
-            },
-            {
-                "row_type": "Receivables Manual Row",
-                "account": default_employee_advance_account,
-                "is_enabled": 1,
-            },
-        ]
+        {
+            "row_type": "Payables Manual Row",
+            "salary_component": "Other Earning",
+            "account": default_expense_account,
+            "is_enabled": 1,
+        },
+        {
+            "row_type": "Receivables Manual Row",
+            "salary_component": "Other Deduction",
+            "account": default_employee_advance_account,
+            "is_enabled": 1,
+        },
+    ]
 
         existing_row_types = []
 

@@ -42,6 +42,16 @@ def get_additional_salary_rows(employee: str, relieving_date):
         if flt(row.amount) <= 0:
             continue
 
+        if frappe.db.has_column("Additional Salary", "custom_created_from_fnf"):
+            created_from_fnf = frappe.db.get_value(
+                "Additional Salary",
+                row.name,
+                "custom_created_from_fnf",
+            )
+
+            if created_from_fnf:
+                continue
+
         filtered_rows.append(row)
 
     log_trace("monthly additional salary rows", len(filtered_rows))

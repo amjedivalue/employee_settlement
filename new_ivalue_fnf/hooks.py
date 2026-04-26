@@ -19,32 +19,91 @@ doctype_js = {
     "Full and Final Statement": "public/js/full_and_final_statement.js",
     # "Full and Final Statement": "public/js/fnf_tracking.js",
 }
-override_doctype_class = {
-    "Full and Final Statement": "new_ivalue_fnf.overrides.full_and_final_statement.CustomFullandFinalStatement"
-}
+# override_doctype_class = {
+#     "Full and Final Statement": "new_ivalue_fnf.overrides.full_and_final_statement.CustomFullandFinalStatement"
+# }
 
 fixtures = [
     {
         "dt": "Custom Field",
         "filters": [
-            ["dt", "in", ["Full and Final Statement", "Full and Final Outstanding Statement", "Company"]]
-        ]
+            [
+                "dt",
+                "in",
+                [
+                    "Full and Final Statement",
+                    "Full and Final Outstanding Statement",
+                    "Full and Final Settings",
+                    "Full and Final Component Setting",
+                    "Full and Final Manual Row Setting",
+                    "Additional Salary",
+                    "Company",
+                ],
+            ]
+        ],
+    },
+    {
+        "dt": "Property Setter",
+        "filters": [
+            [
+                "doc_type",
+                "in",
+                [
+                    "Full and Final Statement",
+                    "Full and Final Outstanding Statement",
+                    "Full and Final Settings",
+                    "Full and Final Component Setting",
+                    "Full and Final Manual Row Setting",
+                    "Additional Salary",
+                    "Company",
+                ],
+            ]
+        ],
     },
     {
         "dt": "Print Format",
         "filters": [
-            ["name", "=", "Custom Full and Final Statement"]
-        ]
+            [
+                "name",
+                "in",
+                [
+                    "Custom Full and Final Statement",
+                    "fnf_clearance_ar",
+                ],
+            ]
+        ],
     },
     {
         "dt": "Workflow",
-        "filters": [["name", "in", ["Full and final Statement"]]]
+        "filters": [
+            [
+                "name",
+                "in",
+                [
+                    "Full and final Statement",
+                ],
+            ]
+        ],
     },
     {
         "dt": "Workflow State",
-        "filters": [["workflow_state_name", "in", ["HR User", "HR Manager", "Pending Finance Director", "Pending Supporting Services Director", "Employee Sigen", "Signed", "Cancel"]]]
+        "filters": [
+            [
+                "workflow_state_name",
+                "in",
+                [
+                    "HR User",
+                    "HR Manager",
+                    "Pending Finance Director",
+                    "Pending Supporting Services Director",
+                    "Employee Sigen",
+                    "Signed",
+                    "Cancel",
+                ],
+            ]
+        ],
     },
-]   
+]
 
 
 # # required_apps = []

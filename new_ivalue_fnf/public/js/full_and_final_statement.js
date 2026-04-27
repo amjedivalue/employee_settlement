@@ -272,10 +272,10 @@ function apply_manual_row_defaults(frm, cdt, cdn) {
         return;
     }
 
-    if (row.is_manual_row && row.reference_document) {
+    if (row.custom_is_manual_row && row.reference_document) {
         return;
     }
-    frappe.model.set_value(cdt, cdn, "is_manual_row", 1);
+    frappe.model.set_value(cdt, cdn, "custom_is_manual_row", 1);
     frappe.model.set_value(cdt, cdn, "status", "Settled");
     let table_name = "Payables";
 
@@ -300,12 +300,12 @@ method: "new_ivalue_fnf.api.full_and_final.service.get_manual_row_defaults",    
 
             frappe.model.set_value(cdt, cdn, "account", data.account);
             frappe.model.set_value(cdt, cdn, "status", data.status);
-            frappe.model.set_value(cdt, cdn, "is_manual_row", data.is_manual_row);
+            frappe.model.set_value(cdt, cdn, "custom_is_manual_row", data.custom_is_manual_row);
         },
         error: function () {
             frappe.model.set_value(cdt, cdn, "account", "");
             frappe.model.set_value(cdt, cdn, "status", "");
-            frappe.model.set_value(cdt, cdn, "is_manual_row", 0);
+            frappe.model.set_value(cdt, cdn, "custom_is_manual_row", 0);
         }
     });
 }

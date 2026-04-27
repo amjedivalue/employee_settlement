@@ -479,8 +479,8 @@ def append_row(
     if hasattr(row, "custom_number_of_days"):
         row.custom_number_of_days = flt(custom_number_of_days, 2)
 
-    if hasattr(row, "is_manual_row"):
-        row.is_manual_row = 0
+    if hasattr(row, "custom_is_manual_row"):
+        row.custom_is_manual_row = 0
 
     if hasattr(row, "cost_center"):
         if (
@@ -536,7 +536,7 @@ def get_existing_manual_rows(doc, table_field: str) -> list[dict]:
     manual_rows = []
 
     for row in rows:
-        is_marked_manual = getattr(row, "is_manual_row", 0)
+        is_marked_manual = getattr(row, "custom_is_manual_row", 0)
 
         reference_document_type = str(
             getattr(row, "reference_document_type", "") or ""
@@ -564,7 +564,7 @@ def get_existing_manual_rows(doc, table_field: str) -> list[dict]:
                 "remarks": getattr(row, "remarks", ""),
                 "custom_number_of_days": getattr(row, "custom_number_of_days", 0),
                 "cost_center": getattr(row, "cost_center", None),
-                "is_manual_row": 1,
+                "custom_is_manual_row": 1,
             }
         )
 
@@ -1437,12 +1437,12 @@ def get_manual_row_defaults(
     return {
         "account": setting_row.account,
         "status": "Settled",
-        "is_manual_row": 1,
+        "custom_is_manual_row": 1,
     }
 
 
 def is_manual_additional_salary_row(row) -> bool:
-    if not cint(getattr(row, "is_manual_row", 0)):
+    if not cint(getattr(row, "custom_is_manual_row", 0)):
         return False
 
     amount = flt(getattr(row, "amount", 0))
@@ -1554,7 +1554,7 @@ def sync_manual_rows_for_table(doc, table_field: str, table_name: str):
 
         row.reference_document_type = "Additional Salary"
         row.reference_document = additional_salary_doc.name
-        row.is_manual_row = 1
+        row.custom_is_manual_row = 1
 
 
 def sync_manual_rows_to_additional_salary(doc):
@@ -1589,7 +1589,7 @@ def cancel_deleted_manual_additional_salary_rows(doc):
             current_references.add(reference_document)
 
     for row in (old_doc.payables or []) + (old_doc.receivables or []):
-        if not cint(getattr(row, "is_manual_row", 0)):
+        if not cint(getattr(row, "custom_is_manual_row", 0)):
             continue
 
         reference_document_type = str(
@@ -1836,9 +1836,9 @@ def explain_settlement_amount(doc_json: str, row_json: str, table_field: str):
     component = str(row_data.get("component") or "").strip()
     amount = flt(row_data.get("amount"), 2)
     custom_number_of_days = flt(row_data.get("custom_number_of_days"), 2)
-    is_manual_row = cint(row_data.get("is_manual_row"))
+    custom_is_manual_row = cint(row_data.get("custom_is_manual_row"))
 
-    if is_manual_row:
+    if custom_is_manual_row:
         return explain_manual_row(
             doc=doc,
             row_data=row_data,

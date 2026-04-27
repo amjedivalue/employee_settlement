@@ -1736,6 +1736,7 @@ def populate_full_and_final_doc(doc, method=None):
 
     if not validate_required_values(doc):
         return
+    cancel_deleted_manual_additional_salary_rows(doc)
 
     warn_if_another_fnf_exists(doc)
     load_base_document_data(doc)

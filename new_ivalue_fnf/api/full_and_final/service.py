@@ -108,7 +108,9 @@ def validate_full_and_final_settings_exists(company: str):
 
     if not settings_name:
         frappe.throw(
-            _("Please create Full and Final Settings first for company: {0}").format(company)
+            _("Please create Full and Final Settings first for company: {0}").format(
+                company
+            )
         )
 
 
@@ -128,7 +130,9 @@ def get_component_setting_for_company(company: str, component_key: str):
     return None
 
 
-def get_settings_field_value(company: str, fieldname: str, default_value: str = "") -> str:
+def get_settings_field_value(
+    company: str, fieldname: str, default_value: str = ""
+) -> str:
     settings_doc = get_settings_doc(company)
 
     if not settings_doc:
@@ -151,7 +155,9 @@ def get_component_label(company: str, component_key: str, fallback_label: str) -
     return fallback_label
 
 
-def get_component_account(company: str, component_key: str, fallback_account: str | None = None) -> str | None:
+def get_component_account(
+    company: str, component_key: str, fallback_account: str | None = None
+) -> str | None:
     setting_row = get_component_setting_for_company(company, component_key)
 
     if setting_row and setting_row.account:
@@ -163,7 +169,9 @@ def get_component_account(company: str, component_key: str, fallback_account: st
     return get_company_default_payable_account(company)
 
 
-def get_component_data(company: str, component_key: str, fallback_account: str | None = None) -> dict:
+def get_component_data(
+    company: str, component_key: str, fallback_account: str | None = None
+) -> dict:
     setting_row = get_component_setting_for_company(company, component_key)
 
     if not setting_row:
@@ -328,7 +336,9 @@ def get_default_cost_center(company: str) -> str | None:
             return settings_cost_center
 
         frappe.throw(
-            _("Default Cost Center {0} does not belong to Company {1}. Please update Full and Final Settings.").format(
+            _(
+                "Default Cost Center {0} does not belong to Company {1}. Please update Full and Final Settings."
+            ).format(
                 settings_cost_center,
                 company,
             )
@@ -336,10 +346,13 @@ def get_default_cost_center(company: str) -> str | None:
 
     company_cost_center = frappe.db.get_value("Company", company, "cost_center")
 
-    if company_cost_center and is_valid_company_cost_center(company_cost_center, company):
+    if company_cost_center and is_valid_company_cost_center(
+        company_cost_center, company
+    ):
         return company_cost_center
 
     return None
+
 
 # ============================================================
 # SECTION 5: Employee / Salary Helpers
@@ -350,23 +363,26 @@ def get_employee_basic_data(employee: str) -> dict:
     if not employee:
         return {}
 
-    employee_data = frappe.db.get_value(
-        "Employee",
-        employee,
-        [
-            "name",
-            "employee_name",
-            "company",
-            "department",
-            "designation",
-            "date_of_joining",
-            "relieving_date",
-            "employment_type",
-             "user_id",
-            "custom_reason_of_leaving",
-        ],
-        as_dict=True,
-    ) or {}
+    employee_data = (
+        frappe.db.get_value(
+            "Employee",
+            employee,
+            [
+                "name",
+                "employee_name",
+                "company",
+                "department",
+                "designation",
+                "date_of_joining",
+                "relieving_date",
+                "employment_type",
+                "user_id",
+                "custom_reason_of_leaving",
+            ],
+            as_dict=True,
+        )
+        or {}
+    )
 
     log_trace("employee data loaded", employee_data.get("name"))
     return employee_data
@@ -465,16 +481,15 @@ def append_row(
 
     if hasattr(row, "is_manual_row"):
         row.is_manual_row = 0
-    
+
     if hasattr(row, "cost_center"):
-        if hasattr(doc, "custom_default_cost_center") and doc.custom_default_cost_center:
+        if (
+            hasattr(doc, "custom_default_cost_center")
+            and doc.custom_default_cost_center
+        ):
             row.cost_center = doc.custom_default_cost_center
         else:
-            row.cost_center = frappe.db.get_value(
-                "Company",
-                doc.company,
-                "cost_center"
-            )
+            row.cost_center = frappe.db.get_value("Company", doc.company, "cost_center")
     log_trace(
         "row appended",
         {
@@ -493,7 +508,6 @@ def apply_document_header(doc, employee_data: dict):
     if hasattr(doc, "custom_user_id"):
         doc.custom_user_id = employee_data.get("user_id")
 
-
     if not doc.date_of_joining:
         doc.date_of_joining = employee_data.get("date_of_joining")
 
@@ -502,10 +516,9 @@ def apply_document_header(doc, employee_data: dict):
 
 
 def apply_salary_snapshot(doc, assignment, salary_data: dict):
-    doc.custom_company_currency = (
-        get_salary_currency_from_assignment(assignment)
-        or get_company_currency(doc.company)
-    )
+    doc.custom_company_currency = get_salary_currency_from_assignment(
+        assignment
+    ) or get_company_currency(doc.company)
     doc.custom_basic_salary = flt(salary_data.get("basic"), 2)
     doc.custom_housing = flt(salary_data.get("housing"), 2)
     doc.custom_transportation = flt(salary_data.get("transportation"), 2)
@@ -517,6 +530,7 @@ def apply_salary_snapshot(doc, assignment, salary_data: dict):
 # SECTION 7: Rebuild Helpers
 # ============================================================
 
+
 def get_existing_manual_rows(doc, table_field: str) -> list[dict]:
     rows = getattr(doc, table_field, []) or []
     manual_rows = []
@@ -524,7 +538,9 @@ def get_existing_manual_rows(doc, table_field: str) -> list[dict]:
     for row in rows:
         is_marked_manual = getattr(row, "is_manual_row", 0)
 
-        reference_document_type = str(getattr(row, "reference_document_type", "") or "").strip()
+        reference_document_type = str(
+            getattr(row, "reference_document_type", "") or ""
+        ).strip()
         reference_document = str(getattr(row, "reference_document", "") or "").strip()
 
         has_pending_manual_values = (
@@ -537,25 +553,31 @@ def get_existing_manual_rows(doc, table_field: str) -> list[dict]:
         if not is_marked_manual and not has_pending_manual_values:
             continue
 
-        manual_rows.append({
-            "component": row.component,
-            "amount": row.amount,
-            "account": row.account,
-            "status": row.status,
-            "reference_document_type": reference_document_type,
-            "reference_document": reference_document,
-            "remarks": getattr(row, "remarks", ""),
-            "custom_number_of_days": getattr(row, "custom_number_of_days", 0),
-            "cost_center": getattr(row, "cost_center", None),
-            "is_manual_row": 1,
-        })
+        manual_rows.append(
+            {
+                "component": row.component,
+                "amount": row.amount,
+                "account": row.account,
+                "status": row.status,
+                "reference_document_type": reference_document_type,
+                "reference_document": reference_document,
+                "remarks": getattr(row, "remarks", ""),
+                "custom_number_of_days": getattr(row, "custom_number_of_days", 0),
+                "cost_center": getattr(row, "cost_center", None),
+                "is_manual_row": 1,
+            }
+        )
 
-    log_trace("manual rows collected", {
-        "table": table_field,
-        "count": len(manual_rows),
-    })
+    log_trace(
+        "manual rows collected",
+        {
+            "table": table_field,
+            "count": len(manual_rows),
+        },
+    )
 
     return manual_rows
+
 
 def rebuild_table_keep_manual_only(doc, table_field: str):
     manual_rows = get_existing_manual_rows(doc, table_field)
@@ -609,7 +631,9 @@ def build_salary_days_payable(doc):
         log_trace("salary days skipped because disabled in settings")
         return
 
-    assignment = get_latest_salary_structure_assignment(doc.employee, doc.relieving_date)
+    assignment = get_latest_salary_structure_assignment(
+        doc.employee, doc.relieving_date
+    )
 
     if not assignment:
         frappe.throw("No Salary Structure Assignment found for this employee.")
@@ -636,7 +660,9 @@ def build_salary_days_payable(doc):
         doc.custom_work_days = flt(worked_days, 2)
 
     component = salary_days_setting.display_name or "Salary Days"
-    account = salary_days_setting.account or get_company_default_payable_account(doc.company)
+    account = salary_days_setting.account or get_company_default_payable_account(
+        doc.company
+    )
 
     append_row(
         doc=doc,
@@ -732,7 +758,13 @@ def get_latest_leave_allocation(employee: str, leave_type: str, end_date):
     return rows[0]
 
 
-def get_leave_taken_days(employee: str, leave_type: str, allocation_start, end_date, personal_leave_days_by_type: dict) -> float:
+def get_leave_taken_days(
+    employee: str,
+    leave_type: str,
+    allocation_start,
+    end_date,
+    personal_leave_days_by_type: dict,
+) -> float:
     leave_applications = frappe.get_all(
         "Leave Application",
         filters={
@@ -771,12 +803,16 @@ def build_leave_encashment_rows(doc):
         log_trace("leave encashment skipped because disabled")
         return
 
-    personal_leave_days_by_type = get_personal_leave_days_by_type(doc.employee, doc.relieving_date)
+    personal_leave_days_by_type = get_personal_leave_days_by_type(
+        doc.employee, doc.relieving_date
+    )
     carry_forward_leave_types = get_carry_forward_leave_types()
     daily_rate = flt(flt(doc.custom_monthly_gross_salary) / 30, 2)
 
     for leave_type in carry_forward_leave_types:
-        allocation = get_latest_leave_allocation(doc.employee, leave_type, doc.relieving_date)
+        allocation = get_latest_leave_allocation(
+            doc.employee, leave_type, doc.relieving_date
+        )
 
         if not allocation:
             continue
@@ -846,7 +882,9 @@ def normalize_text(value) -> str:
     return str(value).strip()
 
 
-def is_saudi_gratuity_allowed(company_country: str, employment_type: str, reason_of_leaving: str) -> bool:
+def is_saudi_gratuity_allowed(
+    company_country: str, employment_type: str, reason_of_leaving: str
+) -> bool:
     """
     تحديد هل الموظف مؤهل لحساب مكافأة نهاية الخدمة حسب القاعدة الحالية.
 
@@ -863,7 +901,11 @@ def is_saudi_gratuity_allowed(company_country: str, employment_type: str, reason
     if normalize_text(employment_type) != "Permanent":
         return False
 
-    if normalize_text(reason_of_leaving) not in ["End of contract", "Termination", "Resignation"]:
+    if normalize_text(reason_of_leaving) not in [
+        "End of contract",
+        "Termination",
+        "Resignation",
+    ]:
         return False
 
     return True
@@ -894,7 +936,9 @@ def calculate_base_gratuity(service_years: float, monthly_salary: float) -> floa
     return flt(first_five_years_amount + remaining_years_amount, 2)
 
 
-def apply_resignation_rule(amount: float, service_years: float, reason_of_leaving: str) -> float:
+def apply_resignation_rule(
+    amount: float, service_years: float, reason_of_leaving: str
+) -> float:
     """
     تطبيق تخفيض الاستقالة.
 
@@ -954,7 +998,9 @@ def build_gratuity_payable(doc):
     service_years = flt(getattr(doc, "custom_total_of_years", 0))
     monthly_salary = flt(getattr(doc, "custom_monthly_gross_salary", 0))
 
-    if not is_saudi_gratuity_allowed(company_country, employment_type, reason_of_leaving):
+    if not is_saudi_gratuity_allowed(
+        company_country, employment_type, reason_of_leaving
+    ):
         log_trace(
             "gratuity skipped by policy",
             {
@@ -1086,7 +1132,9 @@ def build_monthly_additional_salary_rows(doc):
             continue
 
         component_label = setting_data["display_name"]
-        additional_salary_format = get_settings_field_value(doc.company, "additional_salary_format", "Component")
+        additional_salary_format = get_settings_field_value(
+            doc.company, "additional_salary_format", "Component"
+        )
 
         if row.salary_component:
             if additional_salary_format == "Component - New Name":
@@ -1124,31 +1172,35 @@ def build_monthly_additional_salary_rows(doc):
 # SECTION 12: Outstanding Items Builders
 # ============================================================
 
-
 def get_open_employee_advances(employee: str):
     if not employee:
         return []
+
+    fields = [
+        "name",
+        "purpose",
+        "advance_amount",
+        "paid_amount",
+        "claimed_amount",
+        "status",
+    ]
+
+    if frappe.db.has_column("Employee Advance", "returned_amount"):
+        fields.append("returned_amount")
 
     rows = frappe.get_all(
         "Employee Advance",
         filters={
             "employee": employee,
             "docstatus": 1,
-            "status": ["not in", ["Claimed", "Paid", "Cancelled"]],
+            "paid_amount": [">", 0],
+            "status": ["not in", ["Claimed", "Returned", "Partly Claimed and Returned", "Cancelled"]],
         },
-        fields=[
-            "name",
-            "purpose",
-            "advance_amount",
-            "paid_amount",
-            "claimed_amount",
-            "status",
-        ],
+        fields=fields,
     )
 
     log_trace("employee advances found", len(rows))
     return rows
-
 
 def get_open_expense_claims(employee: str):
     if not employee:
@@ -1189,17 +1241,21 @@ def build_employee_advance_rows(doc):
     rows = get_open_employee_advances(doc.employee)
 
     for row in rows:
+        returned_amount = flt(getattr(row, "returned_amount", 0))
+
         outstanding_amount = (
-            flt(row.advance_amount)
-            - flt(row.paid_amount)
+            flt(row.paid_amount)
             - flt(row.claimed_amount)
+            - returned_amount
         )
 
         if flt(outstanding_amount) <= 0:
             continue
 
         component_label = component_data["display_name"]
-        advance_format = get_settings_field_value(doc.company, "employee_advnace_format", "New Name")
+        advance_format = get_settings_field_value(
+            doc.company, "employee_advnace_format", "New Name"
+        )
 
         if row.purpose:
             if advance_format == "Purpose - New Name":
@@ -1240,7 +1296,11 @@ def build_expense_claim_rows(doc):
     rows = get_open_expense_claims(doc.employee)
 
     for row in rows:
-        approved_amount = flt(row.total_sanctioned_amount) or flt(row.total_claimed_amount) or flt(row.grand_total)
+        approved_amount = (
+            flt(row.total_sanctioned_amount)
+            or flt(row.total_claimed_amount)
+            or flt(row.grand_total)
+        )
 
         reimbursed_amount = flt(row.total_amount_reimbursed)
         outstanding_amount = flt(approved_amount - reimbursed_amount, 2)
@@ -1352,13 +1412,19 @@ def get_manual_row_defaults(
     setting_row = get_manual_row_setting(company, row_type)
 
     if not setting_row:
-        frappe.throw(_("Manual row settings are not configured for {0}.").format(row_type))
+        frappe.throw(
+            _("Manual row settings are not configured for {0}.").format(row_type)
+        )
 
     if not setting_row.is_enabled:
         frappe.throw(_("{0} is disabled in Full and Final Settings.").format(row_type))
 
     if not setting_row.account:
-        frappe.throw(_("Please set an account for {0} in Full and Final Settings.").format(row_type))
+        frappe.throw(
+            _("Please set an account for {0} in Full and Final Settings.").format(
+                row_type
+            )
+        )
 
     salary_component = getattr(setting_row, "salary_component", None)
     expected_type = get_expected_salary_component_type(table_name)
@@ -1445,7 +1511,9 @@ def sync_manual_rows_for_table(doc, table_field: str, table_name: str):
         if not is_manual_additional_salary_row(row):
             continue
 
-        old_reference_type = str(getattr(row, "reference_document_type", "") or "").strip()
+        old_reference_type = str(
+            getattr(row, "reference_document_type", "") or ""
+        ).strip()
         old_reference_name = str(getattr(row, "reference_document", "") or "").strip()
 
         row.account = setting_row.account
@@ -1509,7 +1577,9 @@ def cancel_deleted_manual_additional_salary_rows(doc):
     current_references = set()
 
     for row in (doc.payables or []) + (doc.receivables or []):
-        reference_document_type = str(getattr(row, "reference_document_type", "") or "").strip()
+        reference_document_type = str(
+            getattr(row, "reference_document_type", "") or ""
+        ).strip()
         reference_document = str(getattr(row, "reference_document", "") or "").strip()
 
         if reference_document_type == "Additional Salary" and reference_document:
@@ -1519,7 +1589,9 @@ def cancel_deleted_manual_additional_salary_rows(doc):
         if not cint(getattr(row, "is_manual_row", 0)):
             continue
 
-        reference_document_type = str(getattr(row, "reference_document_type", "") or "").strip()
+        reference_document_type = str(
+            getattr(row, "reference_document_type", "") or ""
+        ).strip()
         reference_document = str(getattr(row, "reference_document", "") or "").strip()
 
         if reference_document_type != "Additional Salary":
@@ -1634,9 +1706,7 @@ def load_base_document_data(doc):
 
     if hasattr(doc, "custom_default_cost_center"):
         doc.custom_default_cost_center = frappe.db.get_value(
-            "Company",
-            doc.company,
-            "cost_center"
+            "Company", doc.company, "cost_center"
         )
 
     doc.custom_employment_type = doc.custom_employment_type or employee_data.get(
@@ -1743,3 +1813,682 @@ def apply_totals(doc):
     doc.total_payable_amount = flt(total_payables, 2)
     doc.total_receivable_amount = flt(total_receivables, 2)
 
+
+
+# @frappe.whitelist()
+# def explain_settlement_amount(doc_json: str, row_json: str, table_field: str):
+#     if not doc_json:
+#         frappe.throw(_("Document data is required."))
+
+#     if not row_json:
+#         frappe.throw(_("Row data is required."))
+
+#     doc_data = frappe.parse_json(doc_json)
+#     row_data = frappe.parse_json(row_json)
+
+#     doc = frappe.get_doc(doc_data)
+
+#     reference_document_type = str(row_data.get("reference_document_type") or "").strip()
+#     reference_document = str(row_data.get("reference_document") or "").strip()
+#     component = str(row_data.get("component") or "").strip()
+#     amount = flt(row_data.get("amount"), 2)
+#     custom_number_of_days = flt(row_data.get("custom_number_of_days"), 2)
+#     is_manual_row = cint(row_data.get("is_manual_row"))
+
+#     if is_manual_row:
+#         return explain_manual_row(
+#             doc=doc,
+#             row_data=row_data,
+#             table_field=table_field,
+#         )
+
+#     if reference_document_type == "Salary Structure Assignment":
+#         return explain_salary_days_amount(
+#             doc=doc,
+#             component=component,
+#             amount=amount,
+#             custom_number_of_days=custom_number_of_days,
+#             reference_document=reference_document,
+#         )
+
+#     if reference_document_type == "Leave Allocation":
+#         return explain_leave_amount(
+#             doc=doc,
+#             component=component,
+#             amount=amount,
+#             custom_number_of_days=custom_number_of_days,
+#             reference_document=reference_document,
+#         )
+
+#     if reference_document_type == "Additional Salary":
+#         return explain_additional_salary_amount(
+#             component=component,
+#             amount=amount,
+#             reference_document=reference_document,
+#             table_field=table_field,
+#         )
+
+#     if reference_document_type == "Employee Advance":
+#         return explain_employee_advance_amount(
+#             component=component,
+#             amount=amount,
+#             reference_document=reference_document,
+#         )
+
+#     if reference_document_type == "Employee":
+#         return explain_gratuity_amount(
+#             doc=doc,
+#             component=component,
+#             amount=amount,
+#         )
+
+#     return {
+#         "title": component or "Settlement Row",
+#         "summary": "This amount is available on the row, but no detailed explanation rule was found for its source.",
+#         "lines": [
+#             {
+#                 "label": "Component",
+#                 "value": component or "-",
+#             },
+#             {
+#                 "label": "Amount",
+#                 "value": amount,
+#             },
+#             {
+#                 "label": "Source",
+#                 "value": "{0} {1}".format(
+#                     reference_document_type or "-", reference_document or ""
+#                 ),
+#             },
+#         ],
+#     }
+
+
+# def explain_salary_days_amount(
+#     doc,
+#     component: str,
+#     amount: float,
+#     custom_number_of_days: float,
+#     reference_document: str,
+# ):
+#     monthly_salary = flt(getattr(doc, "custom_monthly_gross_salary", 0), 2)
+#     daily_rate = flt(monthly_salary / 30, 2)
+
+#     return {
+#         "title": component or "Salary Days",
+#         "summary": "This amount is calculated from the employee monthly gross salary and worked days until the relieving date.",
+#         "lines": [
+#             {
+#                 "label": "Salary Structure Assignment",
+#                 "value": reference_document or "-",
+#             },
+#             {
+#                 "label": "Monthly Gross Salary",
+#                 "value": monthly_salary,
+#             },
+#             {
+#                 "label": "Daily Rate",
+#                 "value": "{0} / 30 = {1}".format(monthly_salary, daily_rate),
+#             },
+#             {
+#                 "label": "Worked Days",
+#                 "value": custom_number_of_days,
+#             },
+#             {
+#                 "label": "Formula",
+#                 "value": "{0} × {1} = {2}".format(
+#                     daily_rate, custom_number_of_days, amount
+#                 ),
+#             },
+#             {
+#                 "label": "Final Amount",
+#                 "value": amount,
+#             },
+#         ],
+#     }
+
+
+# def format_leave_days_as_days_and_hours(days_value: float) -> str:
+#     days_value = flt(days_value, 2)
+
+#     if days_value <= 0:
+#         return ""
+
+#     total_hours = round(days_value * 8)
+#     days = total_hours // 8
+#     hours = total_hours % 8
+
+#     parts = []
+
+#     if days == 1:
+#         parts.append("1 day")
+#     elif days > 1:
+#         parts.append("{0} days".format(days))
+
+#     if hours == 1:
+#         parts.append("1 hour")
+#     elif hours > 1:
+#         parts.append("{0} hours".format(hours))
+
+#     if not parts:
+#         return "{0} hours".format(total_hours)
+
+#     return "{0} ({1} days)".format(" and ".join(parts), days_value)
+
+
+# def explain_leave_amount(
+#     doc,
+#     component: str,
+#     amount: float,
+#     custom_number_of_days: float,
+#     reference_document: str,
+# ):
+#     monthly_salary = flt(getattr(doc, "custom_monthly_gross_salary", 0), 2)
+#     daily_rate = flt(monthly_salary / 30, 2)
+
+#     if not reference_document:
+#         return {
+#             "title": component or "Leave Encashment",
+#             "summary": "This row is related to leave encashment, but no Leave Allocation reference was found.",
+#             "lines": [
+#                 {
+#                     "label": "Monthly Gross Salary",
+#                     "value": monthly_salary,
+#                 },
+#                 {
+#                     "label": "Daily Rate",
+#                     "value": "{0} / 30 = {1}".format(monthly_salary, daily_rate),
+#                 },
+#                 {
+#                     "label": "Remaining Leave Days",
+#                     "value": custom_number_of_days,
+#                 },
+#                 {
+#                     "label": "Final Amount",
+#                     "value": amount,
+#                 },
+#             ],
+#         }
+
+#     allocation = frappe.db.get_value(
+#         "Leave Allocation",
+#         reference_document,
+#         [
+#             "leave_type",
+#             "from_date",
+#             "to_date",
+#             "total_leaves_allocated",
+#             "extra_days",
+#         ],
+#         as_dict=True,
+#     )
+
+#     if not allocation:
+#         return {
+#             "title": component or "Leave Encashment",
+#             "summary": "This row is linked to a Leave Allocation document, but the source document was not found.",
+#             "lines": [
+#                 {
+#                     "label": "Leave Allocation",
+#                     "value": reference_document,
+#                 },
+#                 {
+#                     "label": "Final Amount",
+#                     "value": amount,
+#                 },
+#             ],
+#         }
+
+#     earned_leaves = flt(allocation.total_leaves_allocated) + flt(allocation.extra_days)
+
+#     personal_leave_days_by_type = get_personal_leave_days_by_type(
+#         doc.employee,
+#         doc.relieving_date,
+#     )
+
+#     personal_leave_days = flt(
+#         personal_leave_days_by_type.get(allocation.leave_type, 0),
+#         2,
+#     )
+
+#     taken_leaves = get_leave_taken_days(
+#         employee=doc.employee,
+#         leave_type=allocation.leave_type,
+#         allocation_start=allocation.from_date,
+#         end_date=doc.relieving_date,
+#         personal_leave_days_by_type=personal_leave_days_by_type,
+#     )
+
+#     regular_leave_taken = flt(taken_leaves - personal_leave_days, 2)
+#     remaining_leaves = flt(earned_leaves - taken_leaves, 2)
+
+#     return {
+#         "title": component or "Leave Encashment",
+#         "summary": "This amount is calculated from carry-forward leave balance after deducting approved leave applications and personal leave.",
+#         "lines": [
+#             {
+#                 "label": "Leave Allocation",
+#                 "value": reference_document,
+#             },
+#             {
+#                 "label": "Leave Type",
+#                 "value": allocation.leave_type or "-",
+#             },
+#             {
+#                 "label": "Allocation Period",
+#                 "value": "{0} to {1}".format(
+#                     allocation.from_date,
+#                     allocation.to_date,
+#                 ),
+#             },
+#             {
+#                 "label": "Allocated Leaves",
+#                 "value": flt(allocation.total_leaves_allocated, 2),
+#             },
+#             {
+#                 "label": "Extra Days",
+#                 "value": flt(allocation.extra_days, 2),
+#             },
+#             {
+#                 "label": "Total Earned Leaves",
+#                 "value": earned_leaves,
+#             },
+#             {
+#                 "label": "Taken From Leave Applications",
+#                 "value": regular_leave_taken,
+#             },
+#             {
+#                 "label": "Personal Leave",
+#                 "value": format_leave_days_as_days_and_hours(personal_leave_days),
+#             },
+#             {
+#                 "label": "Total Taken Leaves",
+#                 "value": format_leave_days_as_days_and_hours(taken_leaves),
+#             },
+#             {
+#                 "label": "Remaining Leave Balance",
+#                 "value": format_leave_days_as_days_and_hours(remaining_leaves),
+#             },
+#             {
+#                 "label": "Monthly Gross Salary",
+#                 "value": monthly_salary,
+#             },
+#             {
+#                 "label": "Daily Rate",
+#                 "value": "{0} / 30 = {1}".format(monthly_salary, daily_rate),
+#             },
+#             {
+#                 "label": "Formula",
+#                 "value": "{0} × {1} = {2}".format(
+#                     daily_rate,
+#                     remaining_leaves,
+#                     amount,
+#                 ),
+#             },
+#             {
+#                 "label": "Final Amount",
+#                 "value": amount,
+#             },
+#         ],
+#     }
+
+
+# def explain_additional_salary_amount(
+#     component: str, amount: float, reference_document: str, table_field: str
+# ):
+#     additional_salary = None
+
+#     if reference_document:
+#         additional_salary = frappe.db.get_value(
+#             "Additional Salary",
+#             reference_document,
+#             [
+#                 "salary_component",
+#                 "payroll_date",
+#                 "type",
+#                 "amount",
+#                 "custom_created_from_fnf",
+#             ],
+#             as_dict=True,
+#         )
+
+#     direction = "Payable"
+
+#     if table_field == "receivables":
+#         direction = "Receivable"
+
+#     if not additional_salary:
+#         return {
+#             "title": component or "Additional Salary",
+#             "summary": "This row is linked to an Additional Salary document, but the source document was not found.",
+#             "lines": [
+#                 {
+#                     "label": "Additional Salary",
+#                     "value": reference_document or "-",
+#                 },
+#                 {
+#                     "label": "Amount",
+#                     "value": amount,
+#                 },
+#             ],
+#         }
+
+#     created_from_fnf = (
+#         "Yes" if cint(additional_salary.custom_created_from_fnf) else "No"
+#     )
+
+#     return {
+#         "title": component or additional_salary.salary_component or "Additional Salary",
+#         "summary": "This amount comes from a submitted Additional Salary document in the relieving month.",
+#         "lines": [
+#             {
+#                 "label": "Direction",
+#                 "value": direction,
+#             },
+#             {
+#                 "label": "Additional Salary",
+#                 "value": reference_document,
+#             },
+#             {
+#                 "label": "Salary Component",
+#                 "value": additional_salary.salary_component,
+#             },
+#             {
+#                 "label": "Type",
+#                 "value": additional_salary.type,
+#             },
+#             {
+#                 "label": "Payroll Date",
+#                 "value": additional_salary.payroll_date,
+#             },
+#             {
+#                 "label": "Created From Full and Final Manual Row",
+#                 "value": created_from_fnf,
+#             },
+#             {
+#                 "label": "Final Amount",
+#                 "value": amount,
+#             },
+#         ],
+#     }
+
+
+# def explain_employee_advance_amount(
+#     component: str, amount: float, reference_document: str
+# ):
+#     advance = None
+
+#     if reference_document:
+#         advance = frappe.db.get_value(
+#             "Employee Advance",
+#             reference_document,
+#             [
+#                 "purpose",
+#                 "advance_amount",
+#                 "paid_amount",
+#                 "claimed_amount",
+#                 "status",
+#             ],
+#             as_dict=True,
+#         )
+
+#     if not advance:
+#         return {
+#             "title": component or "Employee Advance",
+#             "summary": "This row is linked to an Employee Advance document, but the source document was not found.",
+#             "lines": [
+#                 {
+#                     "label": "Employee Advance",
+#                     "value": reference_document or "-",
+#                 },
+#                 {
+#                     "label": "Amount",
+#                     "value": amount,
+#                 },
+#             ],
+#         }
+
+#     advance_amount = flt(advance.advance_amount, 2)
+#     paid_amount = flt(advance.paid_amount, 2)
+#     claimed_amount = flt(advance.claimed_amount, 2)
+#     outstanding_amount = flt(advance_amount - paid_amount - claimed_amount, 2)
+
+#     return {
+#         "title": component or "Employee Advance",
+#         "summary": "This amount is the remaining outstanding employee advance balance.",
+#         "lines": [
+#             {
+#                 "label": "Employee Advance",
+#                 "value": reference_document,
+#             },
+#             {
+#                 "label": "Purpose",
+#                 "value": advance.purpose or "-",
+#             },
+#             {
+#                 "label": "Advance Amount",
+#                 "value": advance_amount,
+#             },
+#             {
+#                 "label": "Paid Amount",
+#                 "value": paid_amount,
+#             },
+#             {
+#                 "label": "Claimed Amount",
+#                 "value": claimed_amount,
+#             },
+#             {
+#                 "label": "Formula",
+#                 "value": "{0} - {1} - {2} = {3}".format(
+#                     advance_amount,
+#                     paid_amount,
+#                     claimed_amount,
+#                     outstanding_amount,
+#                 ),
+#             },
+#             {
+#                 "label": "Final Amount",
+#                 "value": amount,
+#             },
+#             {
+#                 "label": "Status",
+#                 "value": advance.status or "-",
+#             },
+#         ],
+#     }
+
+# def explain_gratuity_amount(doc, component: str, amount: float):
+#     company_country = getattr(doc, "company_country", None)
+
+#     if not company_country and getattr(doc, "company", None):
+#         company_country = frappe.db.get_value("Company", doc.company, "country")
+
+#     employment_type = getattr(doc, "custom_employment_type", None)
+
+#     if not employment_type and getattr(doc, "employee", None):
+#         employment_type = frappe.db.get_value("Employee", doc.employee, "employment_type")
+
+#     reason_of_leaving = getattr(doc, "custom_reason_of_leaving", None)
+
+#     if not reason_of_leaving and getattr(doc, "employee", None):
+#         reason_of_leaving = frappe.db.get_value(
+#             "Employee",
+#             doc.employee,
+#             "custom_reason_of_leaving",
+#         )
+
+#     service_years = flt(getattr(doc, "custom_total_of_years", 0), 6)
+#     monthly_salary = flt(getattr(doc, "custom_monthly_gross_salary", 0), 2)
+
+#     first_five_years_amount = 0
+#     remaining_years_amount = 0
+
+#     if service_years <= 5:
+#         first_five_years_amount = flt(service_years * (monthly_salary / 2), 2)
+#     else:
+#         first_five_years_amount = flt(5 * (monthly_salary / 2), 2)
+#         remaining_years_amount = flt((service_years - 5) * monthly_salary, 2)
+
+#     base_amount = calculate_base_gratuity(
+#         service_years=service_years,
+#         monthly_salary=monthly_salary,
+#     )
+
+#     resignation_multiplier = get_resignation_multiplier(
+#         service_years=service_years,
+#         reason_of_leaving=reason_of_leaving,
+#     )
+
+#     final_amount = apply_resignation_rule(
+#         amount=base_amount,
+#         service_years=service_years,
+#         reason_of_leaving=reason_of_leaving,
+#     )
+
+#     return {
+#         "title": component or "Gratuity",
+#         "summary": "This amount is calculated based on Saudi gratuity rules using service years, monthly gross salary, and reason of leaving.",
+#         "lines": [
+#             {
+#                 "label": "Company Country",
+#                 "value": company_country or "-",
+#             },
+#             {
+#                 "label": "Employment Type",
+#                 "value": employment_type or "-",
+#             },
+#             {
+#                 "label": "Reason of Leaving",
+#                 "value": reason_of_leaving or "-",
+#             },
+#             {
+#                 "label": "Service Years",
+#                 "value": service_years,
+#             },
+#             {
+#                 "label": "Monthly Gross Salary",
+#                 "value": monthly_salary,
+#             },
+#             {
+#                 "label": "First 5 Years Formula",
+#                 "value": "{0} × ({1} / 2) = {2}".format(
+#                     min(service_years, 5),
+#                     monthly_salary,
+#                     first_five_years_amount,
+#                 ),
+#             },
+#             {
+#                 "label": "After 5 Years Formula",
+#                 "value": "({0} - 5) × {1} = {2}".format(
+#                     service_years,
+#                     monthly_salary,
+#                     remaining_years_amount,
+#                 ) if service_years > 5 else "Not applicable",
+#             },
+#             {
+#                 "label": "Base Gratuity Formula",
+#                 "value": "{0} + {1} = {2}".format(
+#                     first_five_years_amount,
+#                     remaining_years_amount,
+#                     base_amount,
+#                 ),
+#             },
+#             {
+#                 "label": "Resignation Rule",
+#                 "value": get_resignation_rule_text(
+#                     service_years=service_years,
+#                     reason_of_leaving=reason_of_leaving,
+#                 ),
+#             },
+#             {
+#                 "label": "Final Formula",
+#                 "value": "{0} × {1} = {2}".format(
+#                     base_amount,
+#                     resignation_multiplier,
+#                     final_amount,
+#                 ),
+#             },
+#             {
+#                 "label": "Final Amount",
+#                 "value": final_amount or amount,
+#             },
+#         ],
+#     }
+# def get_resignation_multiplier(service_years: float, reason_of_leaving: str) -> float:
+#     if normalize_text(reason_of_leaving) != "Resignation":
+#         return 1
+
+#     if service_years < 2:
+#         return 0
+
+#     if service_years < 5:
+#         return flt(1 / 3, 4)
+
+#     if service_years < 10:
+#         return flt(2 / 3, 4)
+
+#     return 1
+
+
+# def get_resignation_rule_text(service_years: float, reason_of_leaving: str) -> str:
+#     if normalize_text(reason_of_leaving) != "Resignation":
+#         return "Full gratuity because reason of leaving is not Resignation."
+
+#     if service_years < 2:
+#         return "Resignation with less than 2 years of service: employee is not eligible."
+
+#     if service_years < 5:
+#         return "Resignation from 2 to less than 5 years: employee gets one third of gratuity."
+
+#     if service_years < 10:
+#         return "Resignation from 5 to less than 10 years: employee gets two thirds of gratuity."
+
+#     return "Resignation with 10 years or more: employee gets full gratuity."
+
+
+# def explain_manual_row(doc, row_data: dict, table_field: str):
+#     component = str(row_data.get("component") or "").strip()
+#     amount = flt(row_data.get("amount"), 2)
+#     reference_document = str(row_data.get("reference_document") or "").strip()
+
+#     row_type = "Payables Manual Row"
+
+#     if table_field == "receivables":
+#         row_type = "Receivables Manual Row"
+
+#     setting_row = get_manual_row_setting(doc.company, row_type)
+#     salary_component = (
+#         getattr(setting_row, "salary_component", None) if setting_row else None
+#     )
+
+#     summary = "This is a manual settlement row. On save, it is synced with a submitted Additional Salary document."
+
+#     if reference_document:
+#         summary = "This manual row is already synced with a submitted Additional Salary document."
+
+#     return {
+#         "title": component or "Manual Row",
+#         "summary": summary,
+#         "lines": [
+#             {
+#                 "label": "Manual Row Type",
+#                 "value": row_type,
+#             },
+#             {
+#                 "label": "Displayed Component Name",
+#                 "value": component or "-",
+#             },
+#             {
+#                 "label": "Salary Component Used for Additional Salary",
+#                 "value": salary_component or "-",
+#             },
+#             {
+#                 "label": "Additional Salary",
+#                 "value": reference_document or "Will be created on save",
+#             },
+#             {
+#                 "label": "Final Amount",
+#                 "value": amount,
+#             },
+#         ],
+#     }

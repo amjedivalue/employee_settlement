@@ -26,7 +26,7 @@ frappe.ui.form.on("Full and Final Statement", {
         clear_placeholder_rows(frm);
         //  add_full_and_final_settings_button(frm);
         // add_review_settlement_button(frm);
-        // add_explain_selected_row_button(frm);
+        add_explain_selected_row_button(frm);
     },
 
     employee: async function (frm) {
@@ -362,267 +362,270 @@ async function load_employee_basic_data(frm) {
     }
 }
 
-// // ================================================================
-// function add_explain_selected_row_button(frm) {
-//     let button_label = "Select Row and Click Me";
+// ================================================================
+// ================================================================
+// ================================================================
 
-//     if (frm.custom_buttons && frm.custom_buttons[button_label]) {
-//         return;
-//     }
+function add_explain_selected_row_button(frm) {
+    let button_label = "Select Row and Click Me";
 
-//     frm.add_custom_button(button_label, function () {
-//         explain_selected_settlement_row(frm);
-//     });
-// }
+    if (frm.custom_buttons && frm.custom_buttons[button_label]) {
+        return;
+    }
 
-
-// function explain_selected_settlement_row(frm) {
-//     let selected = frm.get_selected();
-
-//     let selected_payables = selected.payables || [];
-//     let selected_receivables = selected.receivables || [];
-
-//     let total_selected = selected_payables.length + selected_receivables.length;
-
-//     if (total_selected === 0) {
-//         frappe.msgprint(__("Please select one row from Payables or Receivables first."));
-//         return;
-//     }
-
-//     if (total_selected > 1) {
-//         frappe.msgprint(__("Please select only one row to explain."));
-//         return;
-//     }
-
-//     let table_field = "payables";
-//     let row_name = selected_payables[0];
-
-//     if (selected_receivables.length) {
-//         table_field = "receivables";
-//         row_name = selected_receivables[0];
-//     }
-
-//     let row = get_selected_child_row(row_name);
-
-//     if (!row) {
-//         frappe.msgprint(__("Could not read the selected row. Please refresh and try again."));
-//         return;
-//     }
-
-//     if (!frm.doc.employee) {
-//         frappe.msgprint(__("Please select an Employee first."));
-//         return;
-//     }
-
-//     if (!frm.doc.relieving_date) {
-//         frappe.msgprint(__("Please set Relieving Date first."));
-//         return;
-//     }
-
-//     frappe.call({
-//         method: "new_ivalue_fnf.api.full_and_final.service.explain_settlement_amount",
-//         args: {
-//             doc_json: JSON.stringify(frm.doc),
-//             row_json: JSON.stringify(row),
-//             table_field: table_field
-//         },
-//         freeze: true,
-//         freeze_message: __("Explaining amount..."),
-//         callback: function (response) {
-//             if (!response.message) {
-//                 return;
-//             }
-
-//             show_amount_explanation_dialog(response.message);
-//         }
-//     });
-// }
+    frm.add_custom_button(button_label, function () {
+        explain_selected_settlement_row(frm);
+    });
+}
 
 
+function explain_selected_settlement_row(frm) {
+    let selected = frm.get_selected();
 
-// function add_explain_selected_row_button(frm) {
-//     frm.add_custom_button(__("Select Row and Click Me"), function () {
-//         explain_selected_settlement_row(frm);
-//     });
-// }
+    let selected_payables = selected.payables || [];
+    let selected_receivables = selected.receivables || [];
 
+    let total_selected = selected_payables.length + selected_receivables.length;
 
-// function explain_selected_settlement_row(frm) {
-//     let selected_rows = frm.get_selected();
+    if (total_selected === 0) {
+        frappe.msgprint(__("Please select one row from Payables or Receivables first."));
+        return;
+    }
 
-//     let selected_payables = selected_rows.payables || [];
-//     let selected_receivables = selected_rows.receivables || [];
+    if (total_selected > 1) {
+        frappe.msgprint(__("Please select only one row to explain."));
+        return;
+    }
 
-//     let total_selected = selected_payables.length + selected_receivables.length;
+    let table_field = "payables";
+    let row_name = selected_payables[0];
 
-//     if (total_selected === 0) {
-//         frappe.msgprint(__("Please select one row from Payables or Receivables first."));
-//         return;
-//     }
+    if (selected_receivables.length) {
+        table_field = "receivables";
+        row_name = selected_receivables[0];
+    }
 
-//     if (total_selected > 1) {
-//         frappe.msgprint(__("Please select only one row."));
-//         return;
-//     }
+    let row = get_selected_child_row(row_name);
 
-//     let table_field = "payables";
-//     let row_name = selected_payables[0];
+    if (!row) {
+        frappe.msgprint(__("Could not read the selected row. Please refresh and try again."));
+        return;
+    }
 
-//     if (selected_receivables.length > 0) {
-//         table_field = "receivables";
-//         row_name = selected_receivables[0];
-//     }
+    if (!frm.doc.employee) {
+        frappe.msgprint(__("Please select an Employee first."));
+        return;
+    }
 
-//     let row = null;
+    if (!frm.doc.relieving_date) {
+        frappe.msgprint(__("Please set Relieving Date first."));
+        return;
+    }
 
-//     if (table_field === "payables") {
-//         row = (frm.doc.payables || []).find(function (item) {
-//             return item.name === row_name;
-//         });
-//     }
+    frappe.call({
+        method: "new_ivalue_fnf.api.full_and_final.service.explain_settlement_amount",
+        args: {
+            doc_json: JSON.stringify(frm.doc),
+            row_json: JSON.stringify(row),
+            table_field: table_field
+        },
+        freeze: true,
+        freeze_message: __("Explaining amount..."),
+        callback: function (response) {
+            if (!response.message) {
+                return;
+            }
 
-//     if (table_field === "receivables") {
-//         row = (frm.doc.receivables || []).find(function (item) {
-//             return item.name === row_name;
-//         });
-//     }
-
-//     if (!row) {
-//         frappe.msgprint(__("Could not find the selected row. Please refresh and try again."));
-//         return;
-//     }
-
-//     if (!frm.doc.employee) {
-//         frappe.msgprint(__("Please select an Employee first."));
-//         return;
-//     }
-
-//     if (!frm.doc.relieving_date) {
-//         frappe.msgprint(__("Please set Relieving Date first."));
-//         return;
-//     }
-
-//     frappe.call({
-//         method: "new_ivalue_fnf.api.full_and_final.service.explain_settlement_amount",
-//         args: {
-//             doc_json: JSON.stringify(frm.doc),
-//             row_json: JSON.stringify(row),
-//             table_field: table_field
-//         },
-//         freeze: true,
-//         freeze_message: __("Explaining amount..."),
-//         callback: function (response) {
-//             if (!response.message) {
-//                 return;
-//             }
-
-//             show_amount_explanation_dialog(response.message);
-//         }
-//     });
-// }
+            show_amount_explanation_dialog(response.message);
+        }
+    });
+}
 
 
-// function show_amount_explanation_dialog(data) {
-//     let dialog = new frappe.ui.Dialog({
-//         title: __("Explain This Amount"),
-//         size: "large",
-//         fields: [
-//             {
-//                 fieldtype: "HTML",
-//                 fieldname: "explanation_html"
-//             }
-//         ]
-//     });
 
-//     dialog.fields_dict.explanation_html.$wrapper.html(
-//         build_amount_explanation_html(data)
-//     );
-
-//     dialog.show();
-// }
+function add_explain_selected_row_button(frm) {
+    frm.add_custom_button(__("Select Row and Click Me"), function () {
+        explain_selected_settlement_row(frm);
+    });
+}
 
 
-// function build_amount_explanation_html(data) {
-//     let lines = (data.lines || []).filter(function (item) {
-//         return has_explanation_value(item ? item.value : null);
-//     });
+function explain_selected_settlement_row(frm) {
+    let selected_rows = frm.get_selected();
 
-//     let rows_html = lines.map(function (item) {
-//         return `
-//             <div style="
-//                 display: grid;
-//                 grid-template-columns: 220px 1fr;
-//                 gap: 12px;
-//                 padding: 9px 0;
-//                 border-bottom: 1px solid var(--border-color);
-//             ">
-//                 <div style="font-weight: 600; color: var(--text-muted);">
-//                     ${fnf_escape_html(item.label || "")}
-//                 </div>
-//                 <div style="font-weight: 500;">
-//                     ${fnf_escape_html(item.value)}
-//                 </div>
-//             </div>
-//         `;
-//     }).join("");
+    let selected_payables = selected_rows.payables || [];
+    let selected_receivables = selected_rows.receivables || [];
 
-//     return `
-//         <div style="font-size: 13px;">
-//             <div style="
-//                 padding: 14px;
-//                 border: 1px solid var(--border-color);
-//                 border-radius: 10px;
-//                 margin-bottom: 14px;
-//                 background: var(--fg-color);
-//             ">
-//                 <div style="font-size: 20px; font-weight: 700; margin-bottom: 4px;">
-//                     ${fnf_escape_html(data.title || "Settlement Row")}
-//                 </div>
-//                 <div style="color: var(--text-muted); line-height: 1.5;">
-//                     ${fnf_escape_html(data.summary || "")}
-//                 </div>
-//             </div>
+    let total_selected = selected_payables.length + selected_receivables.length;
 
-//             <div style="
-//                 border: 1px solid var(--border-color);
-//                 border-radius: 10px;
-//                 padding: 4px 14px;
-//             ">
-//                 ${rows_html}
-//             </div>
-//         </div>
-//     `;
-// }
+    if (total_selected === 0) {
+        frappe.msgprint(__("Please select one row from Payables or Receivables first."));
+        return;
+    }
+
+    if (total_selected > 1) {
+        frappe.msgprint(__("Please select only one row."));
+        return;
+    }
+
+    let table_field = "payables";
+    let row_name = selected_payables[0];
+
+    if (selected_receivables.length > 0) {
+        table_field = "receivables";
+        row_name = selected_receivables[0];
+    }
+
+    let row = null;
+
+    if (table_field === "payables") {
+        row = (frm.doc.payables || []).find(function (item) {
+            return item.name === row_name;
+        });
+    }
+
+    if (table_field === "receivables") {
+        row = (frm.doc.receivables || []).find(function (item) {
+            return item.name === row_name;
+        });
+    }
+
+    if (!row) {
+        frappe.msgprint(__("Could not find the selected row. Please refresh and try again."));
+        return;
+    }
+
+    if (!frm.doc.employee) {
+        frappe.msgprint(__("Please select an Employee first."));
+        return;
+    }
+
+    if (!frm.doc.relieving_date) {
+        frappe.msgprint(__("Please set Relieving Date first."));
+        return;
+    }
+
+    frappe.call({
+        method: "new_ivalue_fnf.api.full_and_final.service.explain_settlement_amount",
+        args: {
+            doc_json: JSON.stringify(frm.doc),
+            row_json: JSON.stringify(row),
+            table_field: table_field
+        },
+        freeze: true,
+        freeze_message: __("Explaining amount..."),
+        callback: function (response) {
+            if (!response.message) {
+                return;
+            }
+
+            show_amount_explanation_dialog(response.message);
+        }
+    });
+}
 
 
-// function has_explanation_value(value) {
-//     if (value === 0) {
-//         return true;
-//     }
+function show_amount_explanation_dialog(data) {
+    let dialog = new frappe.ui.Dialog({
+        title: __("Explain This Amount"),
+        size: "large",
+        fields: [
+            {
+                fieldtype: "HTML",
+                fieldname: "explanation_html"
+            }
+        ]
+    });
 
-//     if (value === null || value === undefined) {
-//         return false;
-//     }
+    dialog.fields_dict.explanation_html.$wrapper.html(
+        build_amount_explanation_html(data)
+    );
 
-//     let string_value = String(value).trim();
-
-//     if (!string_value) {
-//         return false;
-//     }
-
-//     if (string_value === "-") {
-//         return false;
-//     }
-
-//     return true;
-// }
+    dialog.show();
+}
 
 
-// function fnf_escape_html(value) {
-//     return String(value || "")
-//         .replace(/&/g, "&amp;")
-//         .replace(/</g, "&lt;")
-//         .replace(/>/g, "&gt;")
-//         .replace(/"/g, "&quot;")
-//         .replace(/'/g, "&#039;");
-// }
+function build_amount_explanation_html(data) {
+    let lines = (data.lines || []).filter(function (item) {
+        return has_explanation_value(item ? item.value : null);
+    });
+
+    let rows_html = lines.map(function (item) {
+        return `
+            <div style="
+                display: grid;
+                grid-template-columns: 220px 1fr;
+                gap: 12px;
+                padding: 9px 0;
+                border-bottom: 1px solid var(--border-color);
+            ">
+                <div style="font-weight: 600; color: var(--text-muted);">
+                    ${fnf_escape_html(item.label || "")}
+                </div>
+                <div style="font-weight: 500;">
+                    ${fnf_escape_html(item.value)}
+                </div>
+            </div>
+        `;
+    }).join("");
+
+    return `
+        <div style="font-size: 13px;">
+            <div style="
+                padding: 14px;
+                border: 1px solid var(--border-color);
+                border-radius: 10px;
+                margin-bottom: 14px;
+                background: var(--fg-color);
+            ">
+                <div style="font-size: 20px; font-weight: 700; margin-bottom: 4px;">
+                    ${fnf_escape_html(data.title || "Settlement Row")}
+                </div>
+                <div style="color: var(--text-muted); line-height: 1.5;">
+                    ${fnf_escape_html(data.summary || "")}
+                </div>
+            </div>
+
+            <div style="
+                border: 1px solid var(--border-color);
+                border-radius: 10px;
+                padding: 4px 14px;
+            ">
+                ${rows_html}
+            </div>
+        </div>
+    `;
+}
+
+
+function has_explanation_value(value) {
+    if (value === 0) {
+        return true;
+    }
+
+    if (value === null || value === undefined) {
+        return false;
+    }
+
+    let string_value = String(value).trim();
+
+    if (!string_value) {
+        return false;
+    }
+
+    if (string_value === "-") {
+        return false;
+    }
+
+    return true;
+}
+
+
+function fnf_escape_html(value) {
+    return String(value || "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+}

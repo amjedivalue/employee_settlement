@@ -1671,7 +1671,10 @@ def get_closed_workflow_states():
     return ["Cancel", "Signed"]
 
 
-def warn_if_another_fnf_exists(doc):
+def validate_no_other_full_and_final_exists(doc):
+    if not doc.employee:
+        return
+
     existing_doc = frappe.db.get_value(
         "Full and Final Statement",
         {
@@ -1684,20 +1687,20 @@ def warn_if_another_fnf_exists(doc):
     )
 
     if not existing_doc:
-        print(f"[FNF service] no other fnf found | employee={doc.employee}")
         return
 
-    print(
-        f"[FNF service] warning other fnf exists | "
-        f"name={existing_doc.name} state={existing_doc.workflow_state}"
+    document_link = frappe.utils.get_link_to_form(
+        "Full and Final Statement",
+        existing_doc.name,
     )
 
-    frappe.msgprint(
-        msg=_(
-            "Another Full and Final Statement already exists for this employee: {0}. Current state: {1}."
-        ).format(existing_doc.name, existing_doc.workflow_state),
-        title=_("Existing Full and Final Statement"),
-        indicator="orange",
+    frappe.throw(
+        _(
+            "A Full and Final Statement already exists for this employee: {0}. Current state: {1}."
+        ).format(
+            document_link,
+            existing_doc.workflow_state or "-",
+        )
     )
 
 
@@ -1735,16 +1738,43 @@ def load_base_document_data(doc):
 
     apply_service_period(doc)
     return employee_data
+#validate if employee have opened doc 
 
+@frappe.whitelist()
+def get_existing_full_and_final_for_employee(employee: str, current_docname: str = None):
+    if not employee:
+        return None
 
+    filters = {
+        "employee": employee,
+        "docstatus": ["!=", 2],
+    }
+
+    if current_docname:
+        filters["name"] = ["!=", current_docname]
+
+    existing_doc = frappe.db.get_value(
+        "Full and Final Statement",
+        filters,
+        ["name", "workflow_state", "transaction_date"],
+        as_dict=True,
+    )
+
+    if not existing_doc:
+        return None
+
+    return {
+        "name": existing_doc.name,
+        "workflow_state": existing_doc.workflow_state or "",
+        "transaction_date": existing_doc.transaction_date,
+    }
 def populate_full_and_final_doc(doc, method=None):
     log_trace("populate started", {"doc": doc.name, "employee": doc.employee})
 
     if not validate_required_values(doc):
         return
     cancel_deleted_manual_additional_salary_rows(doc)
-
-    warn_if_another_fnf_exists(doc)
+    validate_no_other_full_and_final_exists(doc)
     load_base_document_data(doc)
     paid_via_salary_slip_map = {}
 

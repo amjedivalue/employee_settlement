@@ -32,13 +32,24 @@ frappe.ui.form.on("Full and Final Statement", {
     },
 
     employee: async function (frm) {
-        if (!frm.doc.employee) {
-            clear_employee_related_data(frm);
-            return;
-        }
+    if (!frm.doc.employee) {
+        clear_employee_related_data(frm);
+        return;
+    }
 
-        await load_employee_basic_data(frm);
-    },
+    let existing_doc = await check_existing_full_and_final(frm);
+
+    if (existing_doc) {
+        show_existing_full_and_final_dialog(frm, existing_doc);
+        return;
+    }
+
+    await load_employee_basic_data(frm);
+     frm.refresh_field("relieving_date");
+    frm.refresh_field("custom_user_id");
+},
+
+
 
     company: function (frm) {
     set_child_table_account_filters(frm);
@@ -48,36 +59,63 @@ frappe.ui.form.on("Full and Final Statement", {
         clear_placeholder_rows(frm);
     },
    
-   validate: async function (frm) {
+  validate: async function (frm) {
     clear_placeholder_rows(frm);
 
-    if (frm.doc.employee) {
+    if (!frm.doc.employee) {
+        return;
+    }
 
-        if (!frm.doc.custom_user_id || !frm.doc.relieving_date) {
-            await load_employee_basic_data(frm);
-        }
+    let employee_response = await frappe.db.get_value(
+        "Employee",
+        frm.doc.employee,
+        [
+            "relieving_date",
+            "user_id"
+        ]
+    );
 
-      if (!frm.doc.relieving_date) {
-    frappe.msgprint({
-        title: __("Missing Relieving Date"),
-        message: __("This employee does not have a Relieving Date. Please set the Relieving Date on the Employee record, then reselect the employee."),
-        indicator: "orange"
-    });
+    if (!employee_response || !employee_response.message) {
+        frappe.msgprint({
+            title: __("Employee Not Found"),
+            message: __("Could not load employee details. Please select the employee again."),
+            indicator: "red"
+        });
 
-    frappe.validated = false;
-    return;
-}
+        frappe.validated = false;
+        return;
+    }
 
-if (!frm.doc.custom_user_id) {
-    frappe.msgprint({
-        title: __("Missing User ID"),
-        message: __("This employee is not linked to a User. Please set the User ID on the Employee record, then reselect the employee."),
-        indicator: "orange"
-    });
+    let employee = employee_response.message;
 
-    frappe.validated = false;
-    return;
-}
+    if (!frm.doc.relieving_date && employee.relieving_date) {
+        await frm.set_value("relieving_date", employee.relieving_date);
+    }
+
+    if (!frm.doc.custom_user_id && employee.user_id) {
+        await frm.set_value("custom_user_id", employee.user_id);
+    }
+
+    if (!frm.doc.relieving_date) {
+        frappe.msgprint({
+            title: __("Missing Relieving Date"),
+            message: __("This employee does not have a Relieving Date. Please set the Relieving Date on the Employee record, then reselect the employee."),
+            indicator: "orange"
+        });
+
+        frappe.validated = false;
+        return;
+    }
+
+    if (!frm.doc.custom_user_id) {
+        frappe.msgprint({
+            title: __("Missing User ID"),
+            message: __("This employee is not linked to a User. Please set the User ID on the Employee record, then reselect the employee."),
+            indicator: "orange"
+        });
+
+        frappe.validated = false;
+        return;
     }
 },
     after_workflow_action: async function (frm) {
@@ -123,6 +161,51 @@ frappe.ui.form.on("Full and Final Outstanding Statement", {
         }
     }
 });
+async function check_existing_full_and_final(frm) {
+    let response = await frappe.call({
+        method: "new_ivalue_fnf.api.full_and_final.service.get_existing_full_and_final_for_employee",
+        args: {
+            employee: frm.doc.employee,
+            current_docname: frm.doc.name || ""
+        }
+    });
+
+    if (!response.message) {
+        return null;
+    }
+
+    return response.message;
+}
+
+
+function show_existing_full_and_final_dialog(frm, existing_doc) {
+    let employee = frm.doc.employee;
+
+    frappe.msgprint({
+        title: __("Full and Final Already Exists"),
+        indicator: "orange",
+        message: __(
+            "A Full and Final Statement already exists for this employee.<br><br>" +
+            "<b>Employee:</b> {0}<br>" +
+            "<b>Document ID:</b> {1}<br>" +
+            "<b>Workflow State:</b> {2}<br><br>" +
+            "Please open the existing document instead of creating a new one."
+        ).format(
+            employee,
+            existing_doc.name,
+            existing_doc.workflow_state || "-"
+        ),
+        primary_action: {
+            label: __("Open Existing Document"),
+            action: function () {
+                frappe.set_route("Form", "Full and Final Statement", existing_doc.name);
+            }
+        }
+    });
+
+    frm.set_value("employee", "");
+    clear_employee_related_data(frm);
+}
 
 function clear_employee_related_data(frm) {
     // Parent fields
@@ -375,35 +458,6 @@ function open_full_and_final_settings(frm) {
     frappe.set_route("List", "Full and Final Settings");
 }
 
-frappe.ui.form.on("Full and Final Outstanding Statement", {
-    component: function (frm, cdt, cdn) {
-        apply_manual_row_defaults(frm, cdt, cdn);
-    },
-
-    amount: function (frm, cdt, cdn) {
-        apply_manual_row_defaults(frm, cdt, cdn);
-    },
-
-    paid_via_salary_slip: function (frm, cdt, cdn) {
-        let row = locals[cdt][cdn];
-
-        if (!row) {
-            return;
-        }
-
-        if (row.parentfield === "receivables" && row.paid_via_salary_slip) {
-            frappe.model.set_value(cdt, cdn, "paid_via_salary_slip", 0);
-
-            frappe.msgprint({
-                title: __("Not Allowed"),
-                message: __(
-                    "Paid via Salary Slip can only be used for Payable rows. Receivable rows are still included by the standard Journal Entry creation."
-                ),
-                indicator: "orange"
-            });
-        }
-    }
-});
 
 function apply_manual_row_defaults(frm, cdt, cdn) {
     let row = locals[cdt][cdn];

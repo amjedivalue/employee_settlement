@@ -1,13 +1,15 @@
 frappe.ui.form.on("Full and Final Statement", {
-    setup: function(frm) {
-        frm.set_query("employee", function() {
-            return {
-                filters: [
-                    ["Employee", "relieving_date", "is", "set"]
-                ]
-            };
-        });
-    },
+   setup: function(frm) {
+    frm.set_query("employee", function() {
+        return {
+            filters: [
+                ["Employee", "relieving_date", "is", "set"]
+            ]
+        };
+    });
+
+    set_child_table_account_filters(frm);
+},
     onload(frm) {
 
 
@@ -38,11 +40,13 @@ frappe.ui.form.on("Full and Final Statement", {
         await load_employee_basic_data(frm);
     },
 
+    company: function (frm) {
+    set_child_table_account_filters(frm);
+    clear_invalid_child_accounts(frm);
+},
     relieving_date(frm) {
         clear_placeholder_rows(frm);
     },
-
-    
    
    validate: async function (frm) {
     clear_placeholder_rows(frm);
@@ -87,6 +91,35 @@ if (!frm.doc.custom_user_id) {
     after_workflow_action: function (frm) {
         if (frm.doc.workflow_state !== "Employee Sigen" && frm.doc.workflow_state !== "HR User") {
             add_to_do(frm)
+        }
+    }
+});
+frappe.ui.form.on("Full and Final Outstanding Statement", {
+    component: function (frm, cdt, cdn) {
+        apply_manual_row_defaults(frm, cdt, cdn);
+    },
+
+    amount: function (frm, cdt, cdn) {
+        apply_manual_row_defaults(frm, cdt, cdn);
+    },
+
+    paid_via_salary_slip: function (frm, cdt, cdn) {
+        let row = locals[cdt][cdn];
+
+        if (!row) {
+            return;
+        }
+
+        if (row.parentfield === "receivables" && row.paid_via_salary_slip) {
+            frappe.model.set_value(cdt, cdn, "paid_via_salary_slip", 0);
+
+            frappe.msgprint({
+                title: __("Not Allowed"),
+                message: __(
+                    "Paid via Salary Slip can only be used for Payable rows. Receivable rows are still included by the standard Journal Entry creation."
+                ),
+                indicator: "orange"
+            });
         }
     }
 });
@@ -231,6 +264,100 @@ function clear_placeholder_rows(frm) {
 }
 
 
+function set_child_table_account_filters(frm) {
+    set_account_filter_for_table(frm, "payables");
+    set_account_filter_for_table(frm, "receivables");
+
+    set_cost_center_filter_for_table(frm, "payables");
+    set_cost_center_filter_for_table(frm, "receivables");
+}
+
+
+function set_account_filter_for_table(frm, table_field) {
+    if (!frm.fields_dict[table_field] || !frm.fields_dict[table_field].grid) {
+        return;
+    }
+
+    let account_field = frm.fields_dict[table_field].grid.get_field("account");
+
+    if (!account_field) {
+        return;
+    }
+
+    account_field.get_query = function () {
+        if (!frm.doc.company) {
+            return {
+                filters: {
+                    is_group: 0
+                }
+            };
+        }
+
+        return {
+            filters: {
+                company: frm.doc.company,
+                is_group: 0
+            }
+        };
+    };
+}
+
+
+function set_cost_center_filter_for_table(frm, table_field) {
+    if (!frm.fields_dict[table_field] || !frm.fields_dict[table_field].grid) {
+        return;
+    }
+
+    let cost_center_field = frm.fields_dict[table_field].grid.get_field("cost_center");
+
+    if (!cost_center_field) {
+        return;
+    }
+
+    cost_center_field.get_query = function () {
+        if (!frm.doc.company) {
+            return {
+                filters: {
+                    is_group: 0
+                }
+            };
+        }
+
+        return {
+            filters: {
+                company: frm.doc.company,
+                is_group: 0
+            }
+        };
+    };
+}
+
+
+function clear_invalid_child_accounts(frm) {
+    ["payables", "receivables"].forEach(function (table_field) {
+        (frm.doc[table_field] || []).forEach(function (row) {
+            if (!row.account) {
+                return;
+            }
+
+            frappe.db.get_value("Account", row.account, ["company", "is_group"]).then(function (response) {
+                if (!response.message) {
+                    return;
+                }
+
+                if (
+                    response.message.company !== frm.doc.company ||
+                    response.message.is_group
+                ) {
+                    frappe.model.set_value(row.doctype, row.name, "account", "");
+                }
+            });
+        });
+
+        frm.refresh_field(table_field);
+    });
+}
+
 
 // زر الاعدادات 
 function add_full_and_final_settings_button(frm) {
@@ -247,6 +374,7 @@ function add_full_and_final_settings_button(frm) {
 function open_full_and_final_settings(frm) {
     frappe.set_route("List", "Full and Final Settings");
 }
+
 frappe.ui.form.on("Full and Final Outstanding Statement", {
     component: function (frm, cdt, cdn) {
         apply_manual_row_defaults(frm, cdt, cdn);
@@ -254,6 +382,26 @@ frappe.ui.form.on("Full and Final Outstanding Statement", {
 
     amount: function (frm, cdt, cdn) {
         apply_manual_row_defaults(frm, cdt, cdn);
+    },
+
+    paid_via_salary_slip: function (frm, cdt, cdn) {
+        let row = locals[cdt][cdn];
+
+        if (!row) {
+            return;
+        }
+
+        if (row.parentfield === "receivables" && row.paid_via_salary_slip) {
+            frappe.model.set_value(cdt, cdn, "paid_via_salary_slip", 0);
+
+            frappe.msgprint({
+                title: __("Not Allowed"),
+                message: __(
+                    "Paid via Salary Slip can only be used for Payable rows. Receivable rows are still included by the standard Journal Entry creation."
+                ),
+                indicator: "orange"
+            });
+        }
     }
 });
 
@@ -298,12 +446,10 @@ method: "new_ivalue_fnf.api.full_and_final.service.get_manual_row_defaults",    
 
             let data = response.message;
 
-            frappe.model.set_value(cdt, cdn, "account", data.account);
             frappe.model.set_value(cdt, cdn, "status", data.status);
             frappe.model.set_value(cdt, cdn, "custom_is_manual_row", data.custom_is_manual_row);
         },
         error: function () {
-            frappe.model.set_value(cdt, cdn, "account", "");
             frappe.model.set_value(cdt, cdn, "status", "");
             frappe.model.set_value(cdt, cdn, "custom_is_manual_row", 0);
         }
@@ -366,129 +512,95 @@ async function load_employee_basic_data(frm) {
 // ================================================================
 // ================================================================
 
-function add_explain_selected_row_button(frm) {
-    let button_label = "Select Row and Click Me";
-
-    if (frm.custom_buttons && frm.custom_buttons[button_label]) {
-        return;
-    }
-
-    frm.add_custom_button(button_label, function () {
-        explain_selected_settlement_row(frm);
-    });
-}
 
 
-function explain_selected_settlement_row(frm) {
-    let selected = frm.get_selected();
-
-    let selected_payables = selected.payables || [];
-    let selected_receivables = selected.receivables || [];
-
-    let total_selected = selected_payables.length + selected_receivables.length;
-
-    if (total_selected === 0) {
-        frappe.msgprint(__("Please select one row from Payables or Receivables first."));
-        return;
-    }
-
-    if (total_selected > 1) {
-        frappe.msgprint(__("Please select only one row to explain."));
-        return;
-    }
-
-    let table_field = "payables";
-    let row_name = selected_payables[0];
-
-    if (selected_receivables.length) {
-        table_field = "receivables";
-        row_name = selected_receivables[0];
-    }
-
-    let row = get_selected_child_row(row_name);
-
-    if (!row) {
-        frappe.msgprint(__("Could not read the selected row. Please refresh and try again."));
-        return;
-    }
-
-    if (!frm.doc.employee) {
-        frappe.msgprint(__("Please select an Employee first."));
-        return;
-    }
-
-    if (!frm.doc.relieving_date) {
-        frappe.msgprint(__("Please set Relieving Date first."));
-        return;
-    }
-
-    frappe.call({
-        method: "new_ivalue_fnf.api.full_and_final.service.explain_settlement_amount",
-        args: {
-            doc_json: JSON.stringify(frm.doc),
-            row_json: JSON.stringify(row),
-            table_field: table_field
-        },
-        freeze: true,
-        freeze_message: __("Explaining amount..."),
-        callback: function (response) {
-            if (!response.message) {
-                return;
-            }
-
-            show_amount_explanation_dialog(response.message);
-        }
-    });
-}
-
-
+// ================================================================
+// Explain Row Button - Grid Level
+// ================================================================
 
 function add_explain_selected_row_button(frm) {
-    frm.add_custom_button(__("Select Row and Click Me"), function () {
-        explain_selected_settlement_row(frm);
-    });
+    add_explain_button_to_grid(frm, "payables", "Explain Row");
+    add_explain_button_to_grid(frm, "receivables", "Explain Row");
 }
 
 
-function explain_selected_settlement_row(frm) {
+function add_explain_button_to_grid(frm, table_field, button_label) {
+    if (!frm.fields_dict[table_field] || !frm.fields_dict[table_field].grid) {
+        return;
+    }
+
+    let grid = frm.fields_dict[table_field].grid;
+    let button_class = "fnf-explain-row-button-" + table_field;
+
+    if (grid.wrapper.find("." + button_class).length) {
+        return;
+    }
+
+    let button = $(
+        `<button class="btn btn-xs btn-default ${button_class}" type="button">
+            ${__(button_label)}
+        </button>`
+    );
+
+    button.on("click", function () {
+        explain_selected_settlement_row(frm, table_field);
+    });
+
+    let add_row_button = grid.wrapper.find(".grid-add-row");
+
+    if (add_row_button.length) {
+        add_row_button.after(button);
+    } else {
+        grid.wrapper.find(".grid-buttons").append(button);
+    }
+}
+
+
+function explain_selected_settlement_row(frm, target_table_field) {
     let selected_rows = frm.get_selected();
 
-    let selected_payables = selected_rows.payables || [];
-    let selected_receivables = selected_rows.receivables || [];
+    let table_field = target_table_field || "";
 
-    let total_selected = selected_payables.length + selected_receivables.length;
+    if (!table_field) {
+        let selected_payables = selected_rows.payables || [];
+        let selected_receivables = selected_rows.receivables || [];
 
-    if (total_selected === 0) {
-        frappe.msgprint(__("Please select one row from Payables or Receivables first."));
+        let total_selected = selected_payables.length + selected_receivables.length;
+
+        if (total_selected === 0) {
+            frappe.msgprint(__("Please select one row from Payables or Receivables first."));
+            return;
+        }
+
+        if (total_selected > 1) {
+            frappe.msgprint(__("Please select only one row."));
+            return;
+        }
+
+        table_field = "payables";
+
+        if (selected_receivables.length > 0) {
+            table_field = "receivables";
+        }
+    }
+
+    let selected_names = selected_rows[table_field] || [];
+
+    if (selected_names.length === 0) {
+        frappe.msgprint(__("Please select one row from this table first."));
         return;
     }
 
-    if (total_selected > 1) {
-        frappe.msgprint(__("Please select only one row."));
+    if (selected_names.length > 1) {
+        frappe.msgprint(__("Please select only one row from this table."));
         return;
     }
 
-    let table_field = "payables";
-    let row_name = selected_payables[0];
+    let row_name = selected_names[0];
 
-    if (selected_receivables.length > 0) {
-        table_field = "receivables";
-        row_name = selected_receivables[0];
-    }
-
-    let row = null;
-
-    if (table_field === "payables") {
-        row = (frm.doc.payables || []).find(function (item) {
-            return item.name === row_name;
-        });
-    }
-
-    if (table_field === "receivables") {
-        row = (frm.doc.receivables || []).find(function (item) {
-            return item.name === row_name;
-        });
-    }
+    let row = (frm.doc[table_field] || []).find(function (item) {
+        return item.name === row_name;
+    });
 
     if (!row) {
         frappe.msgprint(__("Could not find the selected row. Please refresh and try again."));
@@ -554,7 +666,7 @@ function build_amount_explanation_html(data) {
         return `
             <div style="
                 display: grid;
-                grid-template-columns: 220px 1fr;
+                grid-template-columns: 240px 1fr;
                 gap: 12px;
                 padding: 9px 0;
                 border-bottom: 1px solid var(--border-color);
@@ -629,3 +741,5 @@ function fnf_escape_html(value) {
         .replace(/"/g, "&quot;")
         .replace(/'/g, "&#039;");
 }
+
+

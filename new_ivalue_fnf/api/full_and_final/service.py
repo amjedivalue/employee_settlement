@@ -4,7 +4,6 @@ import frappe
 from frappe import _
 from frappe.utils import cint, flt, get_first_day, getdate, nowdate, relativedelta
 
-
 # ============================================================
 # SECTION 1: Logging Helpers
 # ============================================================
@@ -463,6 +462,7 @@ def append_row(
     reference_document_type: str | None = None,
     reference_document: str | None = None,
     custom_number_of_days: float = 0,
+    paid_via_salary_slip: int = 0,
 ):
     if flt(amount) <= 0:
         log_trace("skip zero row", {"component": component, "amount": amount})
@@ -475,6 +475,20 @@ def append_row(
     row.status = "Settled"
     row.reference_document_type = reference_document_type
     row.reference_document = reference_document
+    if hasattr(row, "paid_via_salary_slip"):
+        saved_paid_via_salary_slip = 0
+
+        paid_via_salary_slip_map = getattr(doc, "_paid_via_salary_slip_map", {}) or {}
+
+        if reference_document_type and reference_document:
+            saved_paid_via_salary_slip = cint(
+                paid_via_salary_slip_map.get(
+                    (reference_document_type, reference_document),
+                    paid_via_salary_slip,
+                )
+            )
+
+        row.paid_via_salary_slip = saved_paid_via_salary_slip
 
     if hasattr(row, "custom_number_of_days"):
         row.custom_number_of_days = flt(custom_number_of_days, 2)
@@ -564,6 +578,7 @@ def get_existing_manual_rows(doc, table_field: str) -> list[dict]:
                 "remarks": getattr(row, "remarks", ""),
                 "custom_number_of_days": getattr(row, "custom_number_of_days", 0),
                 "cost_center": getattr(row, "cost_center", None),
+                "paid_via_salary_slip": cint(getattr(row, "paid_via_salary_slip", 0)),
                 "custom_is_manual_row": 1,
             }
         )
@@ -1422,20 +1437,12 @@ def get_manual_row_defaults(
     if not setting_row.is_enabled:
         frappe.throw(_("{0} is disabled in Full and Final Settings.").format(row_type))
 
-    if not setting_row.account:
-        frappe.throw(
-            _("Please set an account for {0} in Full and Final Settings.").format(
-                row_type
-            )
-        )
-
     salary_component = getattr(setting_row, "salary_component", None)
     expected_type = get_expected_salary_component_type(table_name)
 
     validate_salary_component_type(salary_component, expected_type)
 
     return {
-        "account": setting_row.account,
         "status": "Settled",
         "custom_is_manual_row": 1,
     }
@@ -1519,7 +1526,6 @@ def sync_manual_rows_for_table(doc, table_field: str, table_name: str):
         ).strip()
         old_reference_name = str(getattr(row, "reference_document", "") or "").strip()
 
-        row.account = setting_row.account
         row.status = "Settled"
 
         if old_reference_type == "Additional Salary" and old_reference_name:
@@ -1740,6 +1746,20 @@ def populate_full_and_final_doc(doc, method=None):
 
     warn_if_another_fnf_exists(doc)
     load_base_document_data(doc)
+    paid_via_salary_slip_map = {}
+
+    for row in (doc.payables or []) + (doc.receivables or []):
+        reference_document_type = str(
+            getattr(row, "reference_document_type", "") or ""
+        ).strip()
+        reference_document = str(getattr(row, "reference_document", "") or "").strip()
+
+        if reference_document_type and reference_document:
+            paid_via_salary_slip_map[(reference_document_type, reference_document)] = (
+                cint(getattr(row, "paid_via_salary_slip", 0))
+            )
+
+    doc._paid_via_salary_slip_map = paid_via_salary_slip_map
     clear_auto_tables(doc)
 
     build_salary_days_payable(doc)
@@ -1797,18 +1817,14 @@ def rebuild_saved_full_and_final_statement(docname: str):
 
     log_trace("background rebuild finished", doc.name)
 
-
 def apply_totals(doc):
-    """
-    تحديث إجماليات Payables و Receivables بدون Summary.
-
-    السبب:
-    تم إلغاء summary.py، لكن ما زلنا نحتاج تحديث الإجماليات.
-    """
     total_payables = 0
     total_receivables = 0
 
     for row in doc.payables or []:
+        if cint(getattr(row, "paid_via_salary_slip", 0)):
+            continue
+
         total_payables += flt(row.amount)
 
     for row in doc.receivables or []:
@@ -1816,8 +1832,6 @@ def apply_totals(doc):
 
     doc.total_payable_amount = flt(total_payables, 2)
     doc.total_receivable_amount = flt(total_receivables, 2)
-
-
 @frappe.whitelist()
 def explain_settlement_amount(doc_json: str, row_json: str, table_field: str):
     if not doc_json:
@@ -2326,6 +2340,15 @@ def explain_gratuity_amount(doc, component: str, amount: float):
         )
 
     service_years = flt(getattr(doc, "custom_total_of_years", 0), 6)
+    service_years_count = cint(getattr(doc, "custom_service_years", 0))
+    service_months_count = cint(getattr(doc, "custom_service_month", 0))
+    service_days_count = cint(getattr(doc, "custom_service_days", 0))
+
+    service_period_text = "{0} years, {1} months, {2} days".format(
+        service_years_count,
+        service_months_count,
+        service_days_count,
+    )
     monthly_salary = flt(getattr(doc, "custom_monthly_gross_salary", 0), 2)
 
     first_five_years_amount = 0
@@ -2370,7 +2393,11 @@ def explain_gratuity_amount(doc, component: str, amount: float):
                 "value": reason_of_leaving or "-",
             },
             {
-                "label": "Service Years",
+                "label": "Service Period",
+                "value": service_period_text,
+            },
+            {
+                "label": "Service Years Used in Calculation",
                 "value": service_years,
             },
             {

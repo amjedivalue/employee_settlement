@@ -1407,7 +1407,42 @@ def validate_salary_component_type(salary_component: str, expected_type: str):
             )
         )
 
+@frappe.whitelist()
+def ensure_employee_relieving_date(employee: str, relieving_date: str = None):
+    if not employee:
+        frappe.throw(_("Employee is required."))
 
+    employee_relieving_date = frappe.db.get_value(
+        "Employee",
+        employee,
+        "relieving_date",
+    )
+
+    if employee_relieving_date:
+        return {
+            "status": "ok",
+            "relieving_date": employee_relieving_date,
+        }
+
+    if not relieving_date:
+        frappe.throw(
+            _("Set Relieving Date for Employee: {0}").format(employee)
+        )
+
+    frappe.db.set_value(
+        "Employee",
+        employee,
+        "relieving_date",
+        relieving_date,
+        update_modified=False,
+    )
+
+    frappe.clear_cache(doctype="Employee", name=employee)
+
+    return {
+        "status": "updated",
+        "relieving_date": relieving_date,
+    }
 @frappe.whitelist()
 def get_manual_row_defaults(
     company: str,
@@ -1768,6 +1803,37 @@ def get_existing_full_and_final_for_employee(employee: str, current_docname: str
         "workflow_state": existing_doc.workflow_state or "",
         "transaction_date": existing_doc.transaction_date,
     }
+    
+# get employee spearation
+@frappe.whitelist()
+def get_employee_separation_for_full_and_final(employee: str):
+    if not employee:
+        return None
+
+    separation = frappe.get_value(
+        "Employee Separation",
+        {
+            "employee": employee,
+            "docstatus": ["in", [0, 1]],
+        },
+        ["name", "docstatus"],
+        as_dict=True,
+        order_by="creation desc",
+    )
+
+    if not separation:
+        return None
+
+    return {
+        "name": separation.name,
+        "docstatus": separation.docstatus,
+    }
+def validate_if_have_sepration(doc):
+    sepration=get_employee_separation_for_full_and_final(doc.employee)
+    if not sepration :
+        frappe.throw("Employee Separation is required before creating the Full and Final Statement. "
+                "Please create Employee Separation first, then come back and continue.")
+
 def populate_full_and_final_doc(doc, method=None):
     log_trace("populate started", {"doc": doc.name, "employee": doc.employee})
 
@@ -1775,6 +1841,7 @@ def populate_full_and_final_doc(doc, method=None):
         return
     cancel_deleted_manual_additional_salary_rows(doc)
     validate_no_other_full_and_final_exists(doc)
+    validate_if_have_sepration(doc)
     load_base_document_data(doc)
     paid_via_salary_slip_map = {}
 

@@ -168,13 +168,14 @@ await ensure_employee_relieving_date(frm);
         }
     },
 
-    // Runs after a workflow action and uploads to Zoho when the state is Employee Sigen.
-    after_workflow_action: async function (frm) {
-        if (frm.doc.workflow_state === "Employee Sigen") {
-            upload_on_zoho(frm);
+    before_workflow_action:async function(frm){
+      if(frm.doc.workflow_state === "Pending Supporting Services Director"){
+        if(frm.selected_workflow_action === "Approve"){
+            await check_if_separatoin_has_been_submited(frm)
         }
+      } 
     },
-
+ 
     // Runs before cancelling the document and cancels the Zoho document.
     before_cancel: function (frm) {
         remove_custody(frm);
@@ -184,9 +185,42 @@ await ensure_employee_relieving_date(frm);
     after_workflow_action: function (frm) {
         if (frm.doc.workflow_state !== "Employee Sigen" && frm.doc.workflow_state !== "HR User") {
             add_to_do(frm);
+        }else if(frm.doc.workflow_state === "Employee Sigen"){
+            upload_on_zoho(frm);
         }
     }
 });
+
+
+
+// khaled Jallad was here
+// this code prevent the workflow from workin if the separation is not submited
+async function check_if_separatoin_has_been_submited(frm){
+    const response = await frappe.call({
+        method:"new_ivalue_fnf.override.full_and_final_statement.full_and_final_statement.check_if_separation_is_submited",
+        args:{name:frm.doc.name},
+    })
+
+    if(response.message.status === 200){
+        if(response.message.data === 0){
+            frappe.dom.unfreeze();
+            frappe.throw("Employee separation must be submited before proceed with Action")
+        }else if(response.message.data === 2){
+            frappe.dom.unfreeze();
+            frappe.throw("Employee separation has been canceled please create new one before proceed with action")
+                    
+        }
+    }else{
+        frappe.dom.unfreeze();
+        frappe.throw("Employee separation not exist")
+
+    }
+
+}
+
+
+
+
 
 async function ensure_employee_relieving_date(frm) {
     if (!frm.doc.employee) {

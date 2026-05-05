@@ -1,6 +1,31 @@
 import frappe
 from custody.employee_custody.ZOHO.Zoho_api import Zoho_api
 
+
+
+
+
+
+
+# check on the separation if it is submited
+@frappe.whitelist()
+def check_if_separation_is_submited(name):
+    doc = frappe.get_doc("Full and Final Statement", name)
+
+    if not frappe.db.exists("Employee Separation", doc.custom_employee_separation):
+        return {'status': 404, "message":"separation not found"}
+
+    spearation_docStatus = frappe.db.get_value("Employee Separation", doc.custom_employee_separation, "docstatus")
+    
+    return {'status': 200, "message":"data fetched successfully", "data": spearation_docStatus}
+
+        
+
+
+
+
+
+
 @frappe.whitelist()
 def add_assigened_to(name, workflow_state):
     status = ""

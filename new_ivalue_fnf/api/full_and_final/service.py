@@ -3,7 +3,7 @@ from datetime import date
 import frappe
 from frappe import _
 from frappe.utils import cint, flt, get_first_day, getdate, nowdate, relativedelta
-
+from frappe.utils import flt, date_diff
 # ============================================================
 # SECTION 1: Logging Helpers
 # ============================================================
@@ -886,7 +886,6 @@ def build_leave_encashment_rows(doc):
 # SECTION 10: Gratuity Builder
 # ============================================================
 
-
 def normalize_text(value) -> str:
     """
     توحيد النص قبل المقارنة.
@@ -925,30 +924,104 @@ def is_saudi_gratuity_allowed(
 
     return True
 
-
-def calculate_base_gratuity(service_years: float, monthly_salary: float) -> float:
-    """
-    حساب المكافأة الأساسية حسب قاعدة السعودية الحالية.
-
-    أول 5 سنوات:
-    نصف راتب شهري عن كل سنة.
-
-    بعد 5 سنوات:
-    راتب شهري كامل عن كل سنة إضافية.
-    """
-    if service_years <= 0:
-        return 0
-
+def calculate_base_gratuity(
+    service_years: int,
+    service_months: int,
+    service_days: int,
+    monthly_salary: float,
+) -> float:
     if monthly_salary <= 0:
         return 0
 
-    if service_years <= 5:
-        return flt(service_years * (monthly_salary / 2), 2)
+    total_months = (service_years * 12) + service_months + (service_days / 30)
+    total_years = total_months / 12
 
-    first_five_years_amount = flt(5 * (monthly_salary / 2), 2)
-    remaining_years_amount = flt((service_years - 5) * monthly_salary, 2)
+    if total_years <= 0:
+        return 0
 
-    return flt(first_five_years_amount + remaining_years_amount, 2)
+    if total_years <= 5:
+        return flt(total_years * (monthly_salary / 2), 2)
+
+    first_five = flt(5 * (monthly_salary / 2), 2)
+    remaining = flt((total_years - 5) * monthly_salary, 2)
+    return flt(first_five + remaining, 2)
+
+
+def build_gratuity_payable(doc):
+    company_country = getattr(doc, "company_country", None)
+    employment_type = getattr(doc, "custom_employment_type", None)
+    reason_of_leaving = getattr(doc, "custom_reason_of_leaving", None)
+    monthly_salary = flt(getattr(doc, "custom_monthly_gross_salary", 0))
+
+    service_years = int(flt(getattr(doc, "custom_service_years", 0)))
+    service_months = int(flt(getattr(doc, "custom_service_month", 0)))   # ← month بدون s
+    service_days = int(flt(getattr(doc, "custom_service_days", 0)))
+
+    if not is_saudi_gratuity_allowed(company_country, employment_type, reason_of_leaving):
+        log_trace("gratuity skipped by policy", {
+            "company_country": company_country,
+            "employment_type": employment_type,
+            "reason_of_leaving": reason_of_leaving,
+        })
+        return
+
+    gratuity_setting = get_gratuity_setting(doc.company)
+
+    if not gratuity_setting:
+        log_trace("gratuity skipped because setting row is missing")
+        return
+
+    if not gratuity_setting.is_enabled:
+        log_trace("gratuity skipped because disabled in settings")
+        return
+
+    base_amount = calculate_base_gratuity(
+        service_years=service_years,
+        service_months=service_months,
+        service_days=service_days,
+        monthly_salary=monthly_salary,
+    )
+
+    total_months = (service_years * 12) + service_months + (service_days / 30)
+    total_years_for_rule = total_months / 12
+
+    final_amount = apply_resignation_rule(
+        amount=base_amount,
+        service_years=total_years_for_rule,
+        reason_of_leaving=reason_of_leaving,
+    )
+
+    if flt(final_amount) <= 0:
+        log_trace("gratuity amount is zero", {
+            "service_years": service_years,
+            "service_months": service_months,
+            "service_days": service_days,
+            "monthly_salary": monthly_salary,
+            "reason_of_leaving": reason_of_leaving,
+        })
+        return
+
+    append_row(
+        doc=doc,
+        table_field="payables",
+        component=gratuity_setting.display_name or "Gratuity",
+        amount=final_amount,
+        account=gratuity_setting.account,
+        reference_document_type="Employee",
+        reference_document=doc.employee,
+        custom_number_of_days=flt(total_months * 30, 2),  # ← السطر الجديد
+
+        
+    )
+
+    log_trace("gratuity row added", {
+        "amount": final_amount,
+        "service_years": service_years,
+        "service_months": service_months,
+        "service_days": service_days,
+        "monthly_salary": monthly_salary,
+        "reason_of_leaving": reason_of_leaving,
+    })
 
 
 def apply_resignation_rule(
@@ -992,91 +1065,6 @@ def get_gratuity_setting(company: str):
     """
     return get_component_setting_for_company(company, "Gratuity")
 
-
-def build_gratuity_payable(doc):
-    """
-    بناء سطر مكافأة نهاية الخدمة داخل Payables مباشرة.
-
-    هذه النسخة لا تنشئ Standard Gratuity Document.
-    هذه النسخة لا تستخدم Gratuity Rule.
-    هذه النسخة تعتمد على:
-    - company_country
-    - custom_employment_type
-    - custom_reason_of_leaving
-    - custom_total_of_years
-    - custom_monthly_gross_salary
-    - Gratuity row في Auto Rows Settings
-    """
-    company_country = getattr(doc, "company_country", None)
-    employment_type = getattr(doc, "custom_employment_type", None)
-    reason_of_leaving = getattr(doc, "custom_reason_of_leaving", None)
-    service_years = flt(getattr(doc, "custom_total_of_years", 0))
-    monthly_salary = flt(getattr(doc, "custom_monthly_gross_salary", 0))
-
-    if not is_saudi_gratuity_allowed(
-        company_country, employment_type, reason_of_leaving
-    ):
-        log_trace(
-            "gratuity skipped by policy",
-            {
-                "company_country": company_country,
-                "employment_type": employment_type,
-                "reason_of_leaving": reason_of_leaving,
-            },
-        )
-        return
-
-    gratuity_setting = get_gratuity_setting(doc.company)
-
-    if not gratuity_setting:
-        log_trace("gratuity skipped because setting row is missing")
-        return
-
-    if not gratuity_setting.is_enabled:
-        log_trace("gratuity skipped because disabled in settings")
-        return
-
-    base_amount = calculate_base_gratuity(
-        service_years=service_years,
-        monthly_salary=monthly_salary,
-    )
-
-    final_amount = apply_resignation_rule(
-        amount=base_amount,
-        service_years=service_years,
-        reason_of_leaving=reason_of_leaving,
-    )
-
-    if flt(final_amount) <= 0:
-        log_trace(
-            "gratuity amount is zero",
-            {
-                "service_years": service_years,
-                "monthly_salary": monthly_salary,
-                "reason_of_leaving": reason_of_leaving,
-            },
-        )
-        return
-
-    append_row(
-        doc=doc,
-        table_field="payables",
-        component=gratuity_setting.display_name or "Gratuity",
-        amount=final_amount,
-        account=gratuity_setting.account,
-        reference_document_type="Employee",
-        reference_document=doc.employee,
-    )
-
-    log_trace(
-        "gratuity row added",
-        {
-            "amount": final_amount,
-            "service_years": service_years,
-            "monthly_salary": monthly_salary,
-            "reason_of_leaving": reason_of_leaving,
-        },
-    )
 
 
 # ============================================================
@@ -1684,13 +1672,22 @@ def apply_service_period(doc):
     if end_date < start_date:
         frappe.throw("Relieving Date cannot be before Date of Joining.")
 
-    difference = relativedelta(end_date + relativedelta(days=1), start_date)
-    total_days = (end_date - start_date).days + 1
+    # difference = relativedelta(end_date + relativedelta(days=1), start_date)
+    # total_days = (end_date - start_date).days + 1
+
+    # doc.custom_service_years = difference.years
+    # doc.custom_service_month = difference.months
+    # doc.custom_service_days = difference.days
+    # doc.custom_total_of_years = flt(total_days / 365, 6)
+    # وحطّ هاد بدله
+    difference = relativedelta(end_date, start_date)
 
     doc.custom_service_years = difference.years
     doc.custom_service_month = difference.months
-    doc.custom_service_days = difference.days
-    doc.custom_total_of_years = flt(total_days / 365, 6)
+    doc.custom_service_days = end_date.day
+    doc.custom_total_of_years = flt(
+        ((difference.years * 12) + difference.months + (end_date.day / 30)) / 12, 6
+    )
 
     log_trace(
         "service period applied",
@@ -2457,8 +2454,15 @@ def explain_gratuity_amount(doc, component: str, amount: float):
         first_five_years_amount = flt(5 * (monthly_salary / 2), 2)
         remaining_years_amount = flt((service_years - 5) * monthly_salary, 2)
 
+    # base_amount = calculate_base_gratuity(
+    #     service_years=service_years,
+    #     monthly_salary=monthly_salary,
+    # )
+    # 
     base_amount = calculate_base_gratuity(
-        service_years=service_years,
+        service_years=service_years_count,
+        service_months=service_months_count,
+        service_days=service_days_count,
         monthly_salary=monthly_salary,
     )
 

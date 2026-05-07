@@ -37,6 +37,7 @@ frappe.ui.form.on("Full and Final Statement", {
         // add_review_settlement_button(frm);
 
         add_explain_selected_row_button(frm);
+        add_test_employee_separation_pdf_sync_button(frm);
     },
 
     // Runs when the employee is selected and validates related documents.
@@ -63,6 +64,7 @@ frappe.ui.form.on("Full and Final Statement", {
         await frm.set_value("custom_employee_separation", employee_separation.name);
 
         await load_employee_basic_data(frm);
+        await ensure_employee_relieving_date(frm);
 
         frm.refresh_field("custom_employee_separation");
         frm.refresh_field("relieving_date");
@@ -141,7 +143,7 @@ frappe.ui.form.on("Full and Final Statement", {
             }
 
 
-await ensure_employee_relieving_date(frm);
+            await ensure_employee_relieving_date(frm);
 
 
             if (!frm.doc.relieving_date) {
@@ -168,14 +170,14 @@ await ensure_employee_relieving_date(frm);
         }
     },
 
-    before_workflow_action:async function(frm){
-      if(frm.doc.workflow_state === "Pending Supporting Services Director"){
-        if(frm.selected_workflow_action === "Approve"){
-            await check_if_separatoin_has_been_submited(frm)
+    before_workflow_action: async function (frm) {
+        if (frm.doc.workflow_state === "Pending Supporting Services Director") {
+            if (frm.selected_workflow_action === "Approve") {
+                await check_if_separatoin_has_been_submited(frm)
+            }
         }
-      } 
     },
- 
+
     // Runs before cancelling the document and cancels the Zoho document.
     before_cancel: function (frm) {
         remove_custody(frm);
@@ -185,7 +187,7 @@ await ensure_employee_relieving_date(frm);
     after_workflow_action: function (frm) {
         if (frm.doc.workflow_state !== "Employee Sigen" && frm.doc.workflow_state !== "HR User") {
             add_to_do(frm);
-        }else if(frm.doc.workflow_state === "Employee Sigen"){
+        } else if (frm.doc.workflow_state === "Employee Sigen") {
             upload_on_zoho(frm);
         }
     }
@@ -195,22 +197,22 @@ await ensure_employee_relieving_date(frm);
 
 // khaled Jallad was here
 // this code prevent the workflow from workin if the separation is not submited
-async function check_if_separatoin_has_been_submited(frm){
+async function check_if_separatoin_has_been_submited(frm) {
     const response = await frappe.call({
-        method:"new_ivalue_fnf.override.full_and_final_statement.full_and_final_statement.check_if_separation_is_submited",
-        args:{name:frm.doc.name},
+        method: "new_ivalue_fnf.override.full_and_final_statement.full_and_final_statement.check_if_separation_is_submited",
+        args: { name: frm.doc.name },
     })
 
-    if(response.message.status === 200){
-        if(response.message.data === 0){
+    if (response.message.status === 200) {
+        if (response.message.data === 0) {
             frappe.dom.unfreeze();
             frappe.throw("Employee separation must be submited before proceed with Action")
-        }else if(response.message.data === 2){
+        } else if (response.message.data === 2) {
             frappe.dom.unfreeze();
             frappe.throw("Employee separation has been canceled please create new one before proceed with action")
-                    
+
         }
-    }else{
+    } else {
         frappe.dom.unfreeze();
         frappe.throw("Employee separation not exist")
 
@@ -545,7 +547,7 @@ function upload_on_zoho(frm) {
                     message: __(response.message.message),
                     indicator: "green"
                 });
-
+                sync_employee_separation_pdf_to_full_and_final(frm, false);
                 frm.reload_doc();
             }
         }
@@ -572,6 +574,10 @@ function fetch_zoho_doc(frm) {
         }
     });
 }
+
+
+
+
 
 
 // ================================================================
@@ -1028,4 +1034,59 @@ function fnf_escape_html(value) {
         .replace(/>/g, "&gt;")
         .replace(/"/g, "&quot;")
         .replace(/'/g, "&#039;");
-}  
+}
+// ===============================================
+//  amjed  tamimi  extention after  khaled Jallad
+//================================================
+
+
+// ================================================================
+// Button to simulate Zoho locally
+// ================================================================
+
+function add_test_employee_separation_pdf_sync_button(frm) {
+    if (frm.is_new()) {
+        return;
+    }
+
+    if (frm.custom_buttons && frm.custom_buttons["Test Separation PDF Sync"]) {
+        return;
+    }
+
+    frm.add_custom_button(__("Test Separation PDF Sync"), function () {
+        sync_employee_separation_pdf_to_full_and_final(frm);
+    });
+}
+
+
+function sync_employee_separation_pdf_to_full_and_final(frm, reload_after_sync = true) {
+    if (!frm.doc.name) {
+        frappe.msgprint(__("Please save the Full and Final Statement before syncing Employee Separation PDF."));
+        return;
+    }
+
+    return frappe.call({
+        method: "new_ivalue_fnf.override.full_and_final_statement.full_and_final_statement.sync_employee_separation_attachments_to_full_and_final",
+        args: {
+            name: frm.doc.name
+        },
+        freeze: true,
+        freeze_message: __("Syncing Employee Separation PDF..."),
+        callback: function (response) {
+            if (!response.message) {
+                return;
+            }
+
+            frappe.show_alert({
+                message: __(response.message.message || "Employee Separation PDF sync completed"),
+                indicator: response.message.status === 201 ? "green" : "blue"
+            });
+
+            if (reload_after_sync) {
+                frm.reload_doc();
+            }
+        }
+    });
+}
+
+// ================amjed  tamimi=====================================

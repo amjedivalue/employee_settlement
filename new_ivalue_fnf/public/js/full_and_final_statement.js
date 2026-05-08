@@ -61,10 +61,17 @@ frappe.ui.form.on("Full and Final Statement", {
             return;
         }
 
-        await frm.set_value("custom_employee_separation", employee_separation.name);
+      await load_employee_basic_data(frm);
 
-        await load_employee_basic_data(frm);
-        await ensure_employee_relieving_date(frm);
+if (!frm.doc.relieving_date) {
+    frappe.msgprint({
+        title: __("Missing Relieving Date"),
+        message: __("Please set Relieving Date on the Employee record first."),
+        indicator: "orange"
+    });
+
+    return;
+}
 
         frm.refresh_field("custom_employee_separation");
         frm.refresh_field("relieving_date");
@@ -221,27 +228,46 @@ async function check_if_separatoin_has_been_submited(frm) {
 }
 
 
-
-
-
 async function ensure_employee_relieving_date(frm) {
     if (!frm.doc.employee) {
         return;
     }
 
-    let response = await frappe.call({
-        method: "new_ivalue_fnf.api.full_and_final.service.ensure_employee_relieving_date",
-        args: {
-            employee: frm.doc.employee,
-            relieving_date: frm.doc.relieving_date || ""
-        }
-    });
+    let relieving_date = frm.doc.relieving_date || "";
 
-    if (response.message && response.message.relieving_date) {
-        await frm.set_value("relieving_date", response.message.relieving_date);
-        frm.refresh_field("relieving_date");
+    if (!relieving_date) {
+        let employee_response = await frappe.db.get_value(
+            "Employee",
+            frm.doc.employee,
+            "relieving_date"
+        );
+
+        if (
+            employee_response &&
+            employee_response.message &&
+            employee_response.message.relieving_date
+        ) {
+            relieving_date = employee_response.message.relieving_date;
+
+            await frm.set_value("relieving_date", relieving_date);
+            frm.refresh_field("relieving_date");
+        }
     }
+
+    if (!relieving_date) {
+        frappe.msgprint({
+            title: __("Missing Relieving Date"),
+            message: __("Please set Relieving Date on the Employee record first."),
+            indicator: "orange"
+        });
+        return false;
+    }
+
+    return true;
 }
+
+
+
 // ================================================================
 // SECTION 2: Full and Final Outstanding Statement Child Table Events
 // ================================================================

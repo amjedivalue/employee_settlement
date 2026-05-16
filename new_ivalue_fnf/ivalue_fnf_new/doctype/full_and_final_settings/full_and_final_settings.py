@@ -29,52 +29,153 @@ class FullandFinalSettings(Document):
                     self.company
                 )
             )
+    def get_company_account_by_number(
+        self,
+        company: str,
+        account_number: str,
+        root_types: list[str] | None = None,
+    ) -> str | None:
+        if not company or not account_number:
+            return None
 
+        filters = {
+            "company": company,
+            "is_group": 0,
+        }
+
+        if root_types:
+            filters["root_type"] = ["in", root_types]
+
+        accounts = frappe.get_all(
+            "Account",
+            filters=filters,
+            fields=["name", "account_number"],
+            order_by="lft asc",
+        )
+
+        for account in accounts:
+            if str(account.account_number or "").strip() == str(account_number).strip():
+                return account.name
+
+        for account in accounts:
+            if str(account.name or "").startswith(f"{account_number} -"):
+                return account.name
+
+        return None
     def add_default_components_if_missing(self):
         default_expense_account = self.get_company_default_expense_account(self.company)
         default_employee_advance_account = self.get_company_employee_advance_account(
             self.company
         )
 
+        salary_days_account = self.get_company_account_by_number(
+            company=self.company,
+            account_number="5213",
+            root_types=["Expense"],
+        )
+
+        leaves_account = self.get_company_account_by_number(
+            company=self.company,
+            account_number="5213",
+            root_types=["Expense"],
+        )
+        unpaid_leaves_account = self.get_company_account_by_number(
+        company=self.company,
+        account_number="5213",
+        root_types=["Expense"],
+    )
+
+        employee_advance_account = self.get_company_account_by_number(
+            company=self.company,
+            account_number="1610",
+            root_types=["Asset"],
+        )
+
+        gratuity_account = self.get_company_account_by_number(
+            company=self.company,
+            account_number="2504",
+            root_types=["Liability", "Expense"],
+        )
+
+
+
+
+        # default_rows = [
+        #     {
+        #         "component_key": "Salary Days",
+        #         "display_name": "Salary Days",
+        #         "account": default_expense_account,
+        #         "is_enabled": 0,
+        #     },
+        #     {
+        #         "component_key": "Leaves",
+        #         "display_name": "Leaves",
+        #         "account": default_expense_account,
+        #         "is_enabled": 0,
+        #     },
+        #     # {
+        #     #     "component_key": "Expense Claim",
+        #     #     "display_name": "Expense Claim",
+        #     #     "account": default_expense_account,
+        #     #     "is_enabled": 0,
+        #     # },
+        #     {
+        #         "component_key": "Employee Advance",
+        #         "display_name": "Employee Advance",
+        #         "account": default_employee_advance_account,
+        #         "is_enabled": 0,
+        #     },
+        #     {
+        #         "component_key": "Additional Salary Earning",
+        #         "display_name": "Additional Salary Earning",
+        #         "account": default_expense_account,
+        #         "is_enabled": 0,
+        #     },
+        #     {
+        #         "component_key": "Additional Salary Deduction",
+        #         "display_name": "Additional Salary Deduction",
+        #         "account": default_employee_advance_account,
+        #         "is_enabled": 0,
+        #     },
+        # ]
         default_rows = [
             {
                 "component_key": "Salary Days",
                 "display_name": "Salary Days",
-                "account": default_expense_account,
-                "is_enabled": 0,
+                "account": salary_days_account,
+                "is_enabled": 1,
             },
             {
                 "component_key": "Leaves",
                 "display_name": "Leaves",
-                "account": default_expense_account,
-                "is_enabled": 0,
+                "account": leaves_account,
+                "is_enabled": 1,
             },
-            # {
-            #     "component_key": "Expense Claim",
-            #     "display_name": "Expense Claim",
-            #     "account": default_expense_account,
-            #     "is_enabled": 0,
-            # },
+            {
+    "component_key": "Unpaid Leaves",
+    "display_name": "Unpaid Leaves",
+    "account": unpaid_leaves_account,
+    "is_enabled": 1,
+},
             {
                 "component_key": "Employee Advance",
                 "display_name": "Employee Advance",
-                "account": default_employee_advance_account,
-                "is_enabled": 0,
+                "account": employee_advance_account,
+                "is_enabled": 1,
             },
             {
                 "component_key": "Additional Salary Earning",
                 "display_name": "Additional Salary Earning",
-                "account": default_expense_account,
-                "is_enabled": 0,
+                "account": None,
+                "is_enabled": 1,
             },
             {
                 "component_key": "Additional Salary Deduction",
                 "display_name": "Additional Salary Deduction",
-                "account": default_employee_advance_account,
-                "is_enabled": 0,
+                "account": None,
+                "is_enabled": 1,
             },
         ]
-
         company_country = frappe.db.get_value("Company", self.company, "country")
 
         if company_country == "Saudi Arabia":
@@ -82,8 +183,8 @@ class FullandFinalSettings(Document):
                 {
                     "component_key": "Gratuity",
                     "display_name": "Gratuity",
-                    "account": default_expense_account,
-                    "is_enabled": 0,
+                      "account": gratuity_account,
+                    "is_enabled": 1,
                 }
             )
 

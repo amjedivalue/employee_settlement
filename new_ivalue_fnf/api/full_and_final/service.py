@@ -3,7 +3,6 @@ from datetime import date
 import frappe
 from frappe import _
 from frappe.utils import cint, flt, get_first_day, getdate, nowdate, relativedelta
-from frappe.utils import flt, date_diff
 # ============================================================
 # SECTION 1: Logging Helpers
 # ============================================================
@@ -107,9 +106,10 @@ def validate_full_and_final_settings_exists(company: str):
 
     if not settings_name:
         frappe.throw(
-            _("Please create Full and Final Settings first for company: {0}").format(
-                company
-            )
+            _(
+                "Full and Final Settings is missing for company {0}. "
+                "Please open Full and Final Settings, create a settings record for this company, "
+            ).format(frappe.bold(company))
         )
 
 
@@ -471,7 +471,19 @@ def append_row(
     row = doc.append(table_field, {})
     row.component = component
     row.amount = flt(amount, 2)
-    row.account = account
+    # row.account = account
+    saved_account = None
+
+    auto_row_account_map = getattr(doc, "_auto_row_account_map", {}) or {}
+
+    if reference_document_type and reference_document:
+        saved_account = auto_row_account_map.get(
+            (reference_document_type, reference_document)
+        )
+
+    row.account = account or saved_account
+    
+    
     row.status = "Settled"
     row.reference_document_type = reference_document_type
     row.reference_document = reference_document
@@ -675,9 +687,7 @@ def build_salary_days_payable(doc):
         doc.custom_work_days = flt(worked_days, 2)
 
     component = salary_days_setting.display_name or "Salary Days"
-    account = salary_days_setting.account or get_company_default_payable_account(
-        doc.company
-    )
+    account = salary_days_setting.account
 
     append_row(
         doc=doc,
@@ -881,7 +891,142 @@ def build_leave_encashment_rows(doc):
             },
         )
 
+# ============================================================
+# SECTION: Unpaid Leaves Builder
+# ============================================================
 
+
+def get_lwp_leave_type_fieldname() -> str | None:
+    if frappe.db.has_column("Leave Type", "is_lwp"):
+        return "is_lwp"
+
+    if frappe.db.has_column("Leave Type", "is_leave_without_pay"):
+        return "is_leave_without_pay"
+
+    return None
+
+
+def get_unpaid_leave_types() -> list[str]:
+    lwp_fieldname = get_lwp_leave_type_fieldname()
+
+    if not lwp_fieldname:
+        return []
+
+    return frappe.get_all(
+        "Leave Type",
+        filters={lwp_fieldname: 1},
+        pluck="name",
+    )
+
+
+def get_unpaid_leave_applications(employee: str, start_date, end_date) -> list[dict]:
+    if not employee or not start_date or not end_date:
+        return []
+
+    unpaid_leave_types = get_unpaid_leave_types()
+
+    if not unpaid_leave_types:
+        return []
+
+    return frappe.get_all(
+        "Leave Application",
+        filters={
+            "employee": employee,
+            "leave_type": ["in", unpaid_leave_types],
+            "docstatus": 1,
+            "status": "Approved",
+            "from_date": ["<=", end_date],
+            "to_date": [">=", start_date],
+        },
+        fields=[
+            "name",
+            "leave_type",
+            "from_date",
+            "to_date",
+            "total_leave_days",
+        ],
+        order_by="from_date asc",
+    )
+
+
+def build_unpaid_leave_rows(doc):
+    setting_row = get_component_setting_for_company(doc.company, "Unpaid Leaves")
+
+    if not setting_row:
+        log_trace("unpaid leaves skipped because setting is missing")
+        return
+
+    if not setting_row.is_enabled:
+        log_trace("unpaid leaves skipped because disabled in settings")
+        return
+
+    month_start = get_month_first_day(doc.relieving_date)
+
+    if doc.date_of_joining and getdate(doc.date_of_joining) > month_start:
+        month_start = getdate(doc.date_of_joining)
+
+    unpaid_leave_applications = get_unpaid_leave_applications(
+        employee=doc.employee,
+        start_date=month_start,
+        end_date=doc.relieving_date,
+    )
+
+    if not unpaid_leave_applications:
+        log_trace("no unpaid leaves found")
+        return
+
+    daily_rate = flt(flt(doc.custom_monthly_gross_salary) / 30, 2)
+
+    for leave_application in unpaid_leave_applications:
+        overlap_days = get_overlap_days(
+            leave_application.from_date,
+            leave_application.to_date,
+            month_start,
+            doc.relieving_date,
+        )
+
+        total_days = get_total_days(
+            leave_application.from_date,
+            leave_application.to_date,
+        )
+
+        if total_days <= 0 or overlap_days <= 0:
+            continue
+
+        unpaid_days = flt(
+            flt(leave_application.total_leave_days)
+            * (flt(overlap_days) / flt(total_days)),
+            2,
+        )
+
+        if unpaid_days <= 0:
+            continue
+
+        amount = flt(unpaid_days * daily_rate, 2)
+
+        component_label = setting_row.display_name or "Unpaid Leaves"
+        component_label = f"{component_label} - {leave_application.leave_type}"
+
+        append_row(
+            doc=doc,
+            table_field="receivables",
+            component=component_label,
+            amount=amount,
+            account=setting_row.account,
+            reference_document_type="Leave Application",
+            reference_document=leave_application.name,
+            custom_number_of_days=unpaid_days,
+        )
+
+        log_trace(
+            "unpaid leave row added",
+            {
+                "leave_application": leave_application.name,
+                "leave_type": leave_application.leave_type,
+                "unpaid_days": unpaid_days,
+                "amount": amount,
+            },
+        )
 # ============================================================
 # SECTION 10: Gratuity Builder
 # ============================================================
@@ -1237,10 +1382,9 @@ def get_open_expense_claims(employee: str):
 
 def build_employee_advance_rows(doc):
     component_data = get_component_data(
-        company=doc.company,
-        component_key="Employee Advance",
-        fallback_account=get_company_employee_advance_account(doc.company),
-    )
+    company=doc.company,
+    component_key="Employee Advance",
+)
 
     if not component_data["is_enabled"]:
         log_trace("employee advance skipped because disabled")
@@ -1655,9 +1799,21 @@ def validate_required_values(doc):
         log_trace("skip build because employee is empty")
         return False
 
-    if not doc.relieving_date:
-        log_trace("skip build because relieving_date is empty")
-        return False
+    employee_relieving_date = frappe.db.get_value(
+        "Employee",
+        doc.employee,
+        "relieving_date",
+    )
+
+    if not employee_relieving_date:
+        frappe.throw(
+            _(
+                "This employee does not have a Relieving Date on the Employee record. "
+                "Please set the Relieving Date on the Employee record first, then try again."
+            )
+        )
+
+    doc.relieving_date = employee_relieving_date
 
     return True
 
@@ -1830,7 +1986,27 @@ def validate_if_have_sepration(doc):
     if not sepration :
         frappe.throw("Employee Separation is required before creating the Full and Final Statement. "
                 "Please create Employee Separation first, then come back and continue.")
+@frappe.whitelist()
+def build_full_and_final_preview(doc_json: str):
+    if not doc_json:
+        frappe.throw(_("Document data is required."))
 
+    doc_data = frappe.parse_json(doc_json)
+    doc = frappe.get_doc(doc_data)
+
+    if not doc.employee:
+        return doc.as_dict()
+
+    if not doc.relieving_date:
+        employee_data = get_employee_basic_data(doc.employee)
+        apply_document_header(doc, employee_data)
+
+    if not validate_required_values(doc):
+        return doc.as_dict()
+
+    populate_full_and_final_doc(doc)
+
+    return doc.as_dict()
 def populate_full_and_final_doc(doc, method=None):
     log_trace("populate started", {"doc": doc.name, "employee": doc.employee})
 
@@ -1840,7 +2016,23 @@ def populate_full_and_final_doc(doc, method=None):
     validate_no_other_full_and_final_exists(doc)
     validate_if_have_sepration(doc)
     load_base_document_data(doc)
+    # paid_via_salary_slip_map = {}
+
+    # for row in (doc.payables or []) + (doc.receivables or []):
+    #     reference_document_type = str(
+    #         getattr(row, "reference_document_type", "") or ""
+    #     ).strip()
+    #     reference_document = str(getattr(row, "reference_document", "") or "").strip()
+
+    #     if reference_document_type and reference_document:
+    #         paid_via_salary_slip_map[(reference_document_type, reference_document)] = (
+    #             cint(getattr(row, "paid_via_salary_slip", 0))
+    #         )
+
+    # doc._paid_via_salary_slip_map = paid_via_salary_slip_map
+    # clear_auto_tables(doc)
     paid_via_salary_slip_map = {}
+    auto_row_account_map = {}
 
     for row in (doc.payables or []) + (doc.receivables or []):
         reference_document_type = str(
@@ -1849,17 +2041,25 @@ def populate_full_and_final_doc(doc, method=None):
         reference_document = str(getattr(row, "reference_document", "") or "").strip()
 
         if reference_document_type and reference_document:
-            paid_via_salary_slip_map[(reference_document_type, reference_document)] = (
-                cint(getattr(row, "paid_via_salary_slip", 0))
+            key = (reference_document_type, reference_document)
+
+            paid_via_salary_slip_map[key] = cint(
+                getattr(row, "paid_via_salary_slip", 0)
             )
 
-    doc._paid_via_salary_slip_map = paid_via_salary_slip_map
-    clear_auto_tables(doc)
+            if getattr(row, "account", None):
+                auto_row_account_map[key] = row.account
 
+    doc._paid_via_salary_slip_map = paid_via_salary_slip_map
+    doc._auto_row_account_map = auto_row_account_map
+
+    clear_auto_tables(doc)
     build_salary_days_payable(doc)
     build_gratuity_payable(doc)
     build_monthly_additional_salary_rows(doc)
     build_employee_advance_rows(doc)
+    build_unpaid_leave_rows(doc)
+
     build_leave_encashment_rows(doc)
 
     sync_manual_rows_to_additional_salary(doc)
@@ -1964,6 +2164,14 @@ def explain_settlement_amount(doc_json: str, row_json: str, table_field: str):
 
     if reference_document_type == "Leave Allocation":
         return explain_leave_amount(
+            doc=doc,
+            component=component,
+            amount=amount,
+            custom_number_of_days=custom_number_of_days,
+            reference_document=reference_document,
+        )
+    if reference_document_type == "Leave Application":
+        return explain_unpaid_leave_amount(
             doc=doc,
             component=component,
             amount=amount,
@@ -2243,7 +2451,181 @@ def explain_leave_amount(
         ],
     }
 
+def explain_unpaid_leave_amount(
+    doc,
+    component: str,
+    amount: float,
+    custom_number_of_days: float,
+    reference_document: str,
+):
+    monthly_salary = flt(getattr(doc, "custom_monthly_gross_salary", 0), 2)
+    daily_rate = flt(monthly_salary / 30, 2)
 
+    if not reference_document:
+        return {
+            "title": component or "Unpaid Leaves",
+            "summary": "This amount is calculated from approved unpaid leave applications during the employee final working month.",
+            "lines": [
+                {
+                    "label": "Monthly Gross Salary",
+                    "value": monthly_salary,
+                },
+                {
+                    "label": "Daily Rate",
+                    "value": "{0} / 30 = {1}".format(monthly_salary, daily_rate),
+                },
+                {
+                    "label": "Unpaid Leave Days",
+                    "value": format_leave_days_as_days_and_hours(custom_number_of_days),
+                },
+                {
+                    "label": "Formula",
+                    "value": "{0} × {1} = {2}".format(
+                        daily_rate,
+                        custom_number_of_days,
+                        amount,
+                    ),
+                },
+                {
+                    "label": "Final Amount",
+                    "value": amount,
+                },
+            ],
+        }
+
+    leave_application = frappe.db.get_value(
+        "Leave Application",
+        reference_document,
+        [
+            "leave_type",
+            "from_date",
+            "to_date",
+            "total_leave_days",
+            "status",
+            "docstatus",
+        ],
+        as_dict=True,
+    )
+
+    if not leave_application:
+        return {
+            "title": component or "Unpaid Leaves",
+            "summary": "This row is linked to a Leave Application document, but the source document was not found.",
+            "lines": [
+                {
+                    "label": "Leave Application",
+                    "value": reference_document,
+                },
+                {
+                    "label": "Final Amount",
+                    "value": amount,
+                },
+            ],
+        }
+
+    month_start = get_month_first_day(doc.relieving_date)
+
+    if doc.date_of_joining and getdate(doc.date_of_joining) > month_start:
+        month_start = getdate(doc.date_of_joining)
+
+    overlap_days = get_overlap_days(
+        leave_application.from_date,
+        leave_application.to_date,
+        month_start,
+        doc.relieving_date,
+    )
+
+    total_days = get_total_days(
+        leave_application.from_date,
+        leave_application.to_date,
+    )
+
+    unpaid_leave_days = 0
+
+    if total_days > 0 and overlap_days > 0:
+        unpaid_leave_days = flt(
+            flt(leave_application.total_leave_days)
+            * (flt(overlap_days) / flt(total_days)),
+            2,
+        )
+
+    calculated_amount = flt(unpaid_leave_days * daily_rate, 2)
+
+    document_status = leave_application.docstatus
+
+    if cint(leave_application.docstatus) == 1:
+        document_status = "Submitted"
+    elif cint(leave_application.docstatus) == 0:
+        document_status = "Draft"
+    elif cint(leave_application.docstatus) == 2:
+        document_status = "Cancelled"
+
+    return {
+        "title": component or "Unpaid Leaves",
+        "summary": "This amount is calculated from approved unpaid leave applications during the employee final working month.",
+        "lines": [
+            {
+                "label": "Leave Application",
+                "value": reference_document,
+            },
+            {
+                "label": "Leave Type",
+                "value": leave_application.leave_type or "-",
+            },
+            {
+                "label": "Application Period",
+                "value": "{0} to {1}".format(
+                    leave_application.from_date,
+                    leave_application.to_date,
+                ),
+            },
+            {
+                "label": "Final Month Period",
+                "value": "{0} to {1}".format(
+                    month_start,
+                    doc.relieving_date,
+                ),
+            },
+            {
+                "label": "Total Leave Days",
+                "value": format_leave_days_as_days_and_hours(
+                    flt(leave_application.total_leave_days, 2)
+                ),
+            },
+            {
+                "label": "Overlapping Unpaid Leave Days",
+                "value": format_leave_days_as_days_and_hours(unpaid_leave_days),
+            },
+            {
+                "label": "Monthly Gross Salary",
+                "value": monthly_salary,
+            },
+            {
+                "label": "Daily Rate",
+                "value": "{0} / 30 = {1}".format(monthly_salary, daily_rate),
+            },
+            {
+                "label": "Formula",
+                "value": "{0} × {1} = {2}".format(
+                    daily_rate,
+                    unpaid_leave_days,
+                    calculated_amount,
+                ),
+            },
+            {
+                "label": "Final Amount",
+                "value": amount,
+            },
+            {
+                "label": "Status",
+                "value": leave_application.status or "-",
+            },
+            {
+                "label": "Document Status",
+                "value": document_status,
+            },
+        ],
+    }
 def explain_additional_salary_amount(
     component: str, amount: float, reference_document: str, table_field: str
 ):

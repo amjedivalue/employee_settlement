@@ -17,7 +17,7 @@
    "fieldtype": "Select",
    "in_list_view": 1,
    "label": "Component ",
-   "options": "Salary Days\nLeaves\nExpense Claim\nEmployee Advance\nGratuity\nAdditional Salary Earning\nAdditional Salary Deduction"
+   "options": "Salary Days\nLeaves\nUnpaid Leaves\nExpense Claim\nEmployee Advance\nGratuity\nAdditional Salary Earning\nAdditional Salary Deduction"
   },
   {
    "fieldname": "display_name",
@@ -44,7 +44,7 @@
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2026-04-20 15:46:25.534735",
+ "modified": "2026-05-15 21:57:55.431305",
  "modified_by": "Administrator",
  "module": "iValue FnF new",
  "name": "Full and Final Component Setting",
